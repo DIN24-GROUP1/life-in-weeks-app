@@ -1,3 +1,7 @@
+### [Shared Note](http://193.166.24.84:3000/Bkx2Xgi4SQ-oJ95ZIy0r4Q?both)
+
+### [Working hours tracking](https://unioulu-my.sharepoint.com/:x:/r/personal/awilliam24_student_oulu_fi/Documents/DIN24-mobile-dev-project-group1.xlsx?d=w8b00b7703ce7455ebceb651f5edd56e6&csf=1&web=1&e=n1nj17)
+
 # Memento — Life in Weeks
 
 An Android app that visualizes your life as a grid of weeks, helping you reflect on time passed and time remaining.
@@ -32,6 +36,7 @@ life-in-weeks-app/
 ## Getting Started
 
 1. Clone the repository:
+
    ```bash
    git clone <repo-url>
    cd life-in-weeks-app
