@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Memento — Life in Weeks</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg: #0d0d1a;
+      --surface: #16162a;
+      --surface2: #1e1e35;
+      --border: #2a2a48;
+      --text: #e8e8f5;
+      --muted: #5a5a80;
+      --accent: #7c3aed;
+      --accent-soft: #a78bfa;
+      --green: #22c55e;
+      --green-glow: rgba(34,197,94,0.35);
+      --past: #3d3d60;
+      --future: #181828;
+      --future-border: #222238;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      height: 100dvh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* ── Phone shell ── */
+    #phone {
+      width: min(430px, 100vw);
+      height: min(930px, 100dvh);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    /* ── Screens ── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      bottom: 68px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ── Header ── */
+    .hdr {
+      padding: 52px 20px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .hdr-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+    .hdr-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    /* ── Scrollable content ── */
+    .scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .scroll-area::-webkit-scrollbar { display: none; }
+
+    /* ────────────────────────────────────────
+       SCREEN 1: LIFE GRID
+    ──────────────────────────────────────── */
+    .grid-toolbar {
+      padding: 10px 16px 6px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+    .pill-btn {
+      padding: 5px 13px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .pill-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .week-axis {
+      display: flex;
+      gap: 1px;
+      padding: 0 16px 4px;
+      margin-left: 26px;
+      flex-shrink: 0;
+    }
+    .wax { width: 6px; height: 8px; font-size: 5.5px; color: var(--muted); text-align: center; flex-shrink: 0; line-height: 8px; }
+
+    .grid-wrap { padding: 0 16px 0; display: flex; gap: 6px; }
+
+    .yr-col { display: flex; flex-direction: column; gap: 1px; width: 20px; flex-shrink: 0; }
+    .yr-lbl { height: 6px; font-size: 6.5px; color: var(--muted); text-align: right; line-height: 6px; visibility: hidden; }
+    .yr-lbl.vis { visibility: visible; }
+
+    .cells-col { display: flex; flex-direction: column; gap: 1px; }
+    .cell-row { display: flex; gap: 1px; }
+
+    .wk {
+      width: 6px; height: 6px;
+      border-radius: 1.2px;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: transform 0.08s;
+    }
+    .wk:active { transform: scale(1.6); }
+    .wk.past  { background: var(--past); }
+    .wk.now   { background: var(--green) !important; box-shadow: 0 0 5px var(--green-glow); }
+    .wk.future{ background: var(--future); border: 1px solid var(--future-border); }
+    .wk.noted { outline: 1.5px solid var(--accent-soft); outline-offset: 0.5px; }
+
+    /* Phase overlays */
+    .phases .wk.past  { opacity: 1; }
+    .phases .wk.future{ opacity: 0.35; }
+    .phases .wk.p0 { background: #3b82f6; }
+    .phases .wk.p1 { background: #10b981; }
+    .phases .wk.p2 { background: #f59e0b; }
+    .phases .wk.p3 { background: #8b5cf6; }
+    .phases .wk.p4 { background: #ec4899; }
+    .phases .wk.p5 { background: #64748b; }
+    .wk.now { background: var(--green) !important; box-shadow: 0 0 5px var(--green-glow) !important; }
+
+    .phase-legend {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 12px 16px 16px;
+      border-top: 1px solid var(--border);
+      margin-top: 8px;
+    }
+    .leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+    .leg-dot { width: 9px; height: 9px; border-radius: 2px; }
+
+    /* ────────────────────────────────────────
+       SCREEN 2: STATS
+    ──────────────────────────────────────── */
+    .stats-inner { padding: 18px 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px 20px;
+    }
+    .card-label {
+      font-size: 11px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 1.2px;
+      margin-bottom: 10px;
+    }
+    .big-num {
+      font-size: 58px; font-weight: 900; letter-spacing: -3px; line-height: 1;
+      background: linear-gradient(135deg, var(--accent-soft) 0%, var(--green) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .big-lbl { font-size: 13px; color: var(--muted); margin-top: 5px; }
+
+    .prog-bar-bg { height: 7px; background: var(--future); border-radius: 4px; overflow: hidden; margin-top: 14px; }
+    .prog-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 4px; transition: width 1.2s cubic-bezier(.22,.68,0,1.2); }
+    .prog-labels { display: flex; justify-content: space-between; margin-top: 5px; }
+    .prog-lbl { font-size: 11px; color: var(--muted); }
+
+    .two-col { display: flex; gap: 12px; }
+    .two-col .card { flex: 1; }
+    .stat-num { font-size: 34px; font-weight: 800; letter-spacing: -1.5px; }
+    .stat-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .phase-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .phase-row:last-child { margin-bottom: 0; }
+    .phase-name { width: 76px; font-size: 11px; color: var(--muted); }
+    .phase-track { flex: 1; height: 5px; background: var(--future); border-radius: 3px; overflow: hidden; }
+    .phase-fill { height: 100%; border-radius: 3px; }
+    .phase-yrs { width: 28px; font-size: 10px; color: var(--muted); text-align: right; }
+
+    .mini-grid { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
+    .mini-row { display: flex; gap: 1px; }
+    .mini-cell { width: 4px; height: 4px; border-radius: 0.5px; }
+
+    .funfact {
+      font-size: 13px; line-height: 1.65; color: var(--muted);
+      background: var(--surface2); border-radius: 10px; padding: 12px 14px;
+      border-left: 3px solid var(--accent);
+    }
+    .funfact strong { color: var(--text); }
+
+    /* ────────────────────────────────────────
+       SCREEN 3: SETTINGS
+    ──────────────────────────────────────── */
+    .settings-inner { padding: 18px 16px 24px; display: flex; flex-direction: column; gap: 22px; }
+    .sec-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px; }
+    .set-row {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 13px; padding: 15px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .set-row:last-child { margin-bottom: 0; }
+    .set-name { font-size: 15px; color: var(--text); }
+    .set-val { font-size: 15px; color: var(--accent-soft); }
+    input[type="date"], input[type="number"] {
+      background: transparent; border: none; color: var(--accent-soft);
+      font-size: 15px; text-align: right; outline: none;
+      font-family: inherit; cursor: pointer; width: auto;
+    }
+    input[type="number"] { width: 52px; }
+    .phase-set-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 13px; padding: 13px 16px; margin-bottom: 8px;
+    }
+    .phase-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .phase-set-name { flex: 1; font-size: 14px; color: var(--text); }
+    .phase-set-range { font-size: 12px; color: var(--muted); }
+    .add-phase-btn {
+      width: 100%; padding: 14px;
+      background: transparent; border: 1.5px dashed var(--border);
+      border-radius: 13px; color: var(--muted); font-size: 14px;
+      cursor: pointer; font-family: inherit; margin-top: 4px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .add-phase-btn:hover { border-color: var(--accent-soft); color: var(--accent-soft); }
+    .coming-soon { opacity: 0.42; pointer-events: none; }
+    .coming-tag { font-size: 10px; background: var(--surface2); border-radius: 4px; padding: 2px 6px; color: var(--muted); }
+
+    /* ────────────────────────────────────────
+       BOTTOM NAV
+    ──────────────────────────────────────── */
+    #nav {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 68px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex; z-index: 100;
+    }
+    .nav-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 4px;
+      background: transparent; border: none; cursor: pointer;
+      color: var(--muted); transition: color 0.15s; font-family: inherit;
+    }
+    .nav-btn.on { color: var(--accent-soft); }
+    .nav-ico { font-size: 21px; line-height: 1; }
+    .nav-lbl { font-size: 10px; letter-spacing: 0.3px; }
+
+    /* ────────────────────────────────────────
+       WEEK MODAL (bottom sheet)
+    ──────────────────────────────────────── */
+    #backdrop {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.55); opacity: 0; pointer-events: none;
+      transition: opacity 0.3s; z-index: 200;
+    }
+    #backdrop.on { opacity: 1; pointer-events: all; }
+
+    #modal {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      background: var(--surface); border-radius: 22px 22px 0 0;
+      border-top: 1px solid var(--border);
+      transform: translateY(102%);
+      transition: transform 0.32s cubic-bezier(0.32,0.72,0,1);
+      z-index: 210; max-height: 88%; display: flex; flex-direction: column;
+    }
+    #modal.open { transform: translateY(0); }
+
+    .modal-handle { width: 38px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto; }
+    .modal-hdr { padding: 4px 20px 16px; border-bottom: 1px solid var(--border); }
+    .modal-badge {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      letter-spacing: 1px; padding: 3px 8px; border-radius: 6px;
+      margin-bottom: 8px; text-transform: uppercase;
+    }
+    .badge-now { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge-past { background: rgba(90,90,128,0.2); color: var(--muted); }
+    .badge-future { background: rgba(124,58,237,0.15); color: var(--accent-soft); }
+    .modal-title { font-size: 20px; font-weight: 800; letter-spacing: -0.4px; }
+    .modal-dates { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    .modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; -ms-overflow-style: none; scrollbar-width: none; }
+    .modal-body::-webkit-scrollbar { display: none; }
+
+    .field-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+    .phase-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 18px; }
+    .chip {
+      padding: 6px 14px; border-radius: 20px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--muted); font-size: 12px; cursor: pointer;
+      font-family: inherit; transition: all 0.12s;
+    }
+    .chip.sel { color: #fff; border-color: transparent; }
+
+    .mem-textarea {
+      width: 100%; height: 100px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 13px; padding: 12px 14px;
+      color: var(--text); font-size: 14px; font-family: inherit;
+      resize: none; outline: none; line-height: 1.6;
+    }
+    .mem-textarea::placeholder { color: var(--muted); }
+    .mem-textarea:focus { border-color: var(--accent); }
+
+    /* ── Memory tabs ── */
+    .mem-tabs {
+      display: flex; border-bottom: 1px solid var(--border);
+      margin: 0 -20px 16px; padding: 0 20px;
+    }
+    .mem-tab {
+      flex: 1; padding: 10px 6px; background: transparent; border: none;
+      color: var(--muted); font-size: 13px; font-family: inherit; cursor: pointer;
+      border-bottom: 2px solid transparent; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+    }
+    .mem-tab.on { color: var(--accent-soft); border-bottom-color: var(--accent-soft); }
+    .mem-tab .tab-count {
+      font-size: 10px; background: var(--surface2);
+      border-radius: 10px; padding: 1px 6px; color: var(--muted);
+    }
+    .mem-tab.on .tab-count { background: rgba(124,58,237,0.2); color: var(--accent-soft); }
+
+    .tab-pane { display: none; }
+    .tab-pane.on { display: block; }
+
+    /* ── Photo grid ── */
+    .photo-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 6px; margin-bottom: 4px;
+    }
+    .photo-thumb {
+      position: relative; aspect-ratio: 1;
+      border-radius: 10px; overflow: hidden;
+      background: var(--surface2);
+    }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-thumb:hover .remove-btn { opacity: 1; }
+    .photo-add-btn {
+      aspect-ratio: 1; border-radius: 10px;
+      border: 1.5px dashed var(--border); background: transparent;
+      color: var(--muted); font-size: 26px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .photo-add-btn:hover { border-color: var(--accent-soft); color: var(--accent-soft); }
+    .remove-btn {
+      position: absolute; top: 5px; right: 5px;
+      width: 22px; height: 22px;
+      background: rgba(0,0,0,0.65); border: none; border-radius: 50%;
+      color: #fff; font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.15s; line-height: 1;
+    }
+    .photo-thumb:hover .remove-btn,
+    .video-item:hover .remove-btn { opacity: 1; }
+
+    /* ── Video list ── */
+    .video-item {
+      background: var(--surface2); border-radius: 12px;
+      overflow: hidden; margin-bottom: 10px; position: relative;
+    }
+    .video-item video { width: 100%; max-height: 200px; display: block; }
+    .video-item .remove-btn { opacity: 0; }
+    .media-upload-btn {
+      width: 100%; padding: 14px; border-radius: 12px;
+      border: 1.5px dashed var(--border); background: transparent;
+      color: var(--muted); font-size: 14px; cursor: pointer;
+      font-family: inherit; transition: border-color 0.15s, color 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .media-upload-btn:hover { border-color: var(--accent-soft); color: var(--accent-soft); }
+
+    /* ── Cell indicators (stacked outlines) ── */
+    .wk.noted    { outline: 1.5px solid var(--accent-soft); outline-offset: 0.5px; }
+    .wk.has-photo { box-shadow: 0 0 0 1.5px #f59e0b; }
+    .wk.has-video { box-shadow: 0 0 0 1.5px #3b82f6; }
+    .wk.noted.has-photo { outline: 1.5px solid var(--accent-soft); box-shadow: 0 0 0 3px #f59e0b; }
+
+    .modal-footer {
+      padding: 12px 20px 20px; border-top: 1px solid var(--border);
+      display: flex; gap: 10px;
+    }
+    .btn-primary {
+      flex: 1; padding: 15px; border-radius: 13px;
+      background: var(--accent); color: #fff; border: none;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: opacity 0.15s;
+    }
+    .btn-primary:active { opacity: 0.8; }
+    .btn-icon {
+      padding: 15px 16px; border-radius: 13px;
+      background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+      font-size: 18px; cursor: pointer;
+    }
+
+    /* Scroll-to-now floating button */
+    #scroll-now-btn {
+      position: absolute; bottom: 82px; right: 14px;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 22px; padding: 9px 16px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 22px rgba(124,58,237,0.45);
+      z-index: 50; font-family: inherit;
+      display: none;
+    }
+
+    /* Onboarding overlay */
+    #onboard {
+      position: absolute; inset: 0;
+      background: var(--bg); z-index: 300;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 32px 28px; text-align: center;
+      transition: opacity 0.4s;
+    }
+    #onboard.hidden { opacity: 0; pointer-events: none; }
+    .ob-icon { font-size: 64px; margin-bottom: 20px; }
+    .ob-title { font-size: 28px; font-weight: 900; letter-spacing: -0.8px; margin-bottom: 8px; }
+    .ob-desc { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 32px; }
+    .ob-field { width: 100%; margin-bottom: 14px; }
+    .ob-field label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; text-align: left; }
+    .ob-field input {
+      width: 100%; padding: 14px 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 13px; color: var(--text); font-size: 16px;
+      font-family: inherit; outline: none;
+    }
+    .ob-field input:focus { border-color: var(--accent); }
+    .ob-start {
+      width: 100%; padding: 16px;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 14px; font-size: 16px; font-weight: 800;
+      cursor: pointer; font-family: inherit; margin-top: 4px;
+      transition: opacity 0.15s;
+    }
+    .ob-start:active { opacity: 0.85; }
+    .ob-skip { font-size: 12px; color: var(--muted); margin-top: 14px; cursor: pointer; text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div id="phone">
+
+  <!-- ── ONBOARDING ── -->
+  <div id="onboard">
+    <div class="ob-icon">🗓️</div>
+    <div class="ob-title">Your Life in Weeks</div>
+    <div class="ob-desc">Every square is one week of your life.<br>Tap any to add a memory, note, or milestone.</div>
+    <div class="ob-field">
+      <label>Your Date of Birth</label>
+      <input type="date" id="ob-bday" value="1990-01-15" />
+    </div>
+    <div class="ob-field">
+      <label>Life Expectancy (years)</label>
+      <input type="number" id="ob-life" value="90" min="50" max="120" />
+    </div>
+    <button class="ob-start" onclick="startApp()">Start My Timeline →</button>
+    <div class="ob-skip" onclick="startApp()">Skip for now</div>
+  </div>
+
+  <!-- ── SCREEN: LIFE GRID ── -->
+  <div class="screen active" id="screen-grid">
+    <div class="hdr">
+      <div class="hdr-title">Your Life</div>
+      <div class="hdr-sub" id="grid-sub">Loading…</div>
+    </div>
+    <div class="grid-toolbar">
+      <button class="pill-btn" id="phase-toggle" onclick="togglePhases()">🎨 Life Phases</button>
+      <button class="pill-btn" onclick="scrollToNow()">📍 Today</button>
+    </div>
+    <div class="week-axis" id="week-axis"></div>
+    <div class="scroll-area" id="grid-scroll">
+      <div class="grid-wrap">
+        <div class="yr-col" id="yr-col"></div>
+        <div class="cells-col" id="cells-col"></div>
+      </div>
+      <div class="phase-legend" id="phase-legend" style="display:none"></div>
+      <div style="height:12px"></div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: STATS ── -->
+  <div class="screen" id="screen-stats">
+    <div class="hdr">
+      <div class="hdr-title">Stats</div>
+      <div class="hdr-sub">Your life by the numbers</div>
+    </div>
+    <div class="scroll-area">
+      <div class="stats-inner">
+        <div class="card">
+          <div class="card-label">Weeks Lived</div>
+          <div class="big-num" id="s-weeks">0</div>
+          <div class="big-lbl" id="s-age"></div>
+          <div class="prog-bar-bg"><div class="prog-bar-fill" id="s-prog" style="width:0%"></div></div>
+          <div class="prog-labels">
+            <span class="prog-lbl" id="s-pct"></span>
+            <span class="prog-lbl" id="s-rem"></span>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <div class="card-label">Years</div>
+            <div class="stat-num" id="s-years">0</div>
+            <div class="stat-lbl">lived</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Days</div>
+            <div class="stat-num" id="s-days">0</div>
+            <div class="stat-lbl">alive</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Life Phases</div>
+          <div id="s-phases"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Mini Timeline</div>
+          <div class="mini-grid" id="s-mini"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Perspective</div>
+          <div class="funfact" id="s-fact"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: SETTINGS ── -->
+  <div class="screen" id="screen-settings">
+    <div class="hdr">
+      <div class="hdr-title">Settings</div>
+      <div class="hdr-sub">Personalise your timeline</div>
+    </div>
+    <div class="scroll-area">
+      <div class="settings-inner">
+
+        <div>
+          <div class="sec-label">About You</div>
+          <div class="set-row">
+            <span class="set-name">Date of Birth</span>
+            <input type="date" id="cfg-bday" onchange="applySettings()" />
+          </div>
+          <div class="set-row">
+            <span class="set-name">Life Expectancy</span>
+            <div style="display:flex;align-items:center;gap:4px">
+              <input type="number" id="cfg-life" min="50" max="120" onchange="applySettings()" />
+              <span class="set-val">yrs</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="sec-label">Life Phases</div>
+          <div id="cfg-phases"></div>
+          <button class="add-phase-btn" onclick="alert('Phase editor coming in v1.1 — you'll be able to add, rename, and recolour phases!')">+ Add Phase</button>
+        </div>
+
+        <div>
+          <div class="sec-label">Coming Soon</div>
+          <div class="set-row coming-soon">
+            <span class="set-name">☁️ Cloud Sync</span>
+            <span class="coming-tag">Soon</span>
+          </div>
+          <div class="set-row coming-soon">
+            <span class="set-name">🌍 World Events Overlay</span>
+            <span class="coming-tag">Soon</span>
+          </div>
+          <div class="set-row coming-soon">
+            <span class="set-name">📸 Photo Memories</span>
+            <span class="coming-tag">Soon</span>
+          </div>
+          <div class="set-row coming-soon">
+            <span class="set-name">👤 Account &amp; Sync</span>
+            <span class="coming-tag">Soon</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BOTTOM NAV ── -->
+  <nav id="nav">
+    <button class="nav-btn on" onclick="switchScreen('grid',this)">
+      <span class="nav-ico">⬛</span><span class="nav-lbl">Life</span>
+    </button>
+    <button class="nav-btn" onclick="switchScreen('stats',this)">
+      <span class="nav-ico">📊</span><span class="nav-lbl">Stats</span>
+    </button>
+    <button class="nav-btn" onclick="switchScreen('settings',this)">
+      <span class="nav-ico">⚙️</span><span class="nav-lbl">Settings</span>
+    </button>
+  </nav>
+
+  <!-- ── BACKDROP ── -->
+  <div id="backdrop" onclick="closeModal()"></div>
+
+  <!-- ── WEEK MODAL ── -->
+  <div id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-hdr">
+      <div class="modal-badge" id="modal-badge"></div>
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-dates" id="modal-dates"></div>
+    </div>
+    <div class="modal-body">
+      <div class="field-label">Life Phase</div>
+      <div class="phase-chips" id="modal-chips"></div>
+
+      <!-- Memory tabs -->
+      <div class="mem-tabs">
+        <button class="mem-tab on" id="tab-btn-note"   onclick="switchTab('note',this)">📝 Note</button>
+        <button class="mem-tab"    id="tab-btn-photos" onclick="switchTab('photos',this)">📷 Photos <span class="tab-count" id="photo-count"></span></button>
+        <button class="mem-tab"    id="tab-btn-videos" onclick="switchTab('videos',this)">🎥 Videos <span class="tab-count" id="video-count"></span></button>
+      </div>
+
+      <!-- Note pane -->
+      <div class="tab-pane on" id="tab-note">
+        <textarea class="mem-textarea" id="modal-note" placeholder="What happened this week? Any memory, milestone, or moment worth keeping…"></textarea>
+      </div>
+
+      <!-- Photos pane -->
+      <div class="tab-pane" id="tab-photos">
+        <div class="photo-grid" id="photo-grid"></div>
+        <p style="font-size:11px;color:var(--muted);margin-top:6px">Tap a photo to view full size. Stored in-session only.</p>
+      </div>
+
+      <!-- Videos pane -->
+      <div class="tab-pane" id="tab-videos">
+        <div id="video-list"></div>
+        <button class="media-upload-btn" onclick="document.getElementById('video-input').click()">
+          🎥 Add Video
+        </button>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px">Videos are stored in-session only.</p>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="saveMemory()">Save Memory</button>
+    </div>
+  </div>
+
+  <!-- Hidden file inputs -->
+  <input type="file" id="photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotoUpload(event)" />
+  <input type="file" id="video-input" accept="video/*" multiple style="display:none" onchange="handleVideoUpload(event)" />
+
+  <!-- Lightbox -->
+  <div id="lightbox" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.92);z-index:400;align-items:center;justify-content:center;" onclick="this.style.display='none'">
+    <img id="lightbox-img" style="max-width:96%;max-height:96%;border-radius:12px;object-fit:contain;" />
+  </div>
+
+  <!-- Scroll-to-now fab -->
+  <button id="scroll-now-btn" onclick="scrollToNow()">📍 Jump to Today</button>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+const TODAY = new Date('2026-03-17T00:00:00');
+
+const PHASES = [
+  { name: 'Childhood',   start: 0,  end: 6,  color: '#3b82f6' },
+  { name: 'School',      start: 6,  end: 18, color: '#10b981' },
+  { name: 'University',  start: 18, end: 23, color: '#f59e0b' },
+  { name: 'Career',      start: 23, end: 65, color: '#8b5cf6' },
+  { name: 'Senior',      start: 65, end: 90, color: '#64748b' },
+];
+
+let S = {
+  birthday: new Date('1990-01-15T00:00:00'),
+  lifespan: 90,
+  showPhases: false,
+  memories: {},     // "r-c" → { note, phaseIdx }
+  selectedCell: null,
+};
+
+// ══════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════
+const MS_WEEK = 7 * 86400 * 1000;
+const MS_DAY  = 86400 * 1000;
+
+function currentWeekIdx() {
+  const ms = TODAY - S.birthday;
+  return ms < 0 ? -1 : Math.floor(ms / MS_WEEK);
+}
+function weekStart(row, col) {
+  return new Date(S.birthday.getTime() + (row * 52 + col) * MS_WEEK);
+}
+function phaseFor(ageYrs) {
+  for (let i = 0; i < PHASES.length; i++)
+    if (ageYrs >= PHASES[i].start && ageYrs < PHASES[i].end) return i;
+  return PHASES.length - 1;
+}
+function fmt(d) {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// ══════════════════════════════════════════
+//  BUILD GRID
+// ══════════════════════════════════════════
+function buildGrid() {
+  const cwIdx = currentWeekIdx();
+  const yrCol  = document.getElementById('yr-col');
+  const cells  = document.getElementById('cells-col');
+  const axis   = document.getElementById('week-axis');
+  yrCol.innerHTML = cells.innerHTML = axis.innerHTML = '';
+
+  // Week axis (numbers every 4)
+  for (let c = 0; c < 52; c++) {
+    const d = document.createElement('div');
+    d.className = 'wax';
+    if (c % 4 === 0) d.textContent = c + 1;
+    axis.appendChild(d);
+  }
+
+  for (let r = 0; r < S.lifespan; r++) {
+    // Year label
+    const yl = document.createElement('div');
+    yl.className = 'yr-lbl' + (r % 5 === 0 ? ' vis' : '');
+    if (r % 5 === 0) yl.textContent = r;
+    yrCol.appendChild(yl);
+
+    // Row of cells
+    const row = document.createElement('div');
+    row.className = 'cell-row';
+    for (let c = 0; c < 52; c++) {
+      const idx = r * 52 + c;
+      const cell = document.createElement('div');
+      cell.className = 'wk p' + phaseFor(r);
+      if (idx < cwIdx)       cell.classList.add('past');
+      else if (idx === cwIdx) cell.classList.add('now');
+      else                   cell.classList.add('future');
+      const key = `${r}-${c}`;
+      const mem = S.memories[key];
+      if (mem?.note)            cell.classList.add('noted');
+      if (mem?.photos?.length)  cell.classList.add('has-photo');
+      if (mem?.videos?.length)  cell.classList.add('has-video');
+      cell.dataset.r = r; cell.dataset.c = c;
+      cell.addEventListener('click', () => openModal(r, c));
+      row.appendChild(cell);
+    }
+    cells.appendChild(row);
+  }
+
+  if (S.showPhases) cells.classList.add('phases');
+  document.getElementById('grid-sub').textContent =
+    `Week ${cwIdx} · ${(S.lifespan * 52 - cwIdx).toLocaleString()} weeks remaining`;
+
+  renderPhaseLegend();
+  renderPhaseSettings();
+}
+
+function renderPhaseLegend() {
+  const legend = document.getElementById('phase-legend');
+  legend.innerHTML = '';
+  PHASES.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'leg';
+    el.innerHTML = `<div class="leg-dot" style="background:${p.color}"></div>${p.name} (${p.start}–${p.end})`;
+    legend.appendChild(el);
+  });
+}
+
+function togglePhases() {
+  S.showPhases = !S.showPhases;
+  const c = document.getElementById('cells-col');
+  const btn = document.getElementById('phase-toggle');
+  const legend = document.getElementById('phase-legend');
+  S.showPhases ? c.classList.add('phases') : c.classList.remove('phases');
+  btn.classList.toggle('on', S.showPhases);
+  legend.style.display = S.showPhases ? 'flex' : 'none';
+}
+
+function scrollToNow() {
+  const row = Math.floor(currentWeekIdx() / 52);
+  const scroll = document.getElementById('grid-scroll');
+  scroll.scrollTo({ top: Math.max(0, row * 7 - 100), behavior: 'smooth' });
+}
+
+// ══════════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════════
+function openModal(r, c) {
+  S.selectedCell = { r, c };
+  const idx = r * 52 + c;
+  const cwIdx = currentWeekIdx();
+  const ageYrs  = Math.floor(idx / 52);
+  const weekInYr = (idx % 52) + 1;
+  const start = weekStart(r, c);
+  const end   = new Date(start.getTime() + 6 * MS_DAY);
+  const key   = `${r}-${c}`;
+  const mem   = S.memories[key] || {};
+
+  // Badge
+  const badge = document.getElementById('modal-badge');
+  if (idx === cwIdx) { badge.textContent = '⭐ This Week'; badge.className = 'modal-badge badge-now'; }
+  else if (idx < cwIdx)   { badge.textContent = 'Past Week';   badge.className = 'modal-badge badge-past'; }
+  else                    { badge.textContent = 'Future Week'; badge.className = 'modal-badge badge-future'; }
+
+  document.getElementById('modal-title').textContent = `Age ${ageYrs} · Week ${weekInYr} of the year`;
+  document.getElementById('modal-dates').textContent = `${fmt(start)} – ${fmt(end)}`;
+
+  // Phase chips
+  const chips = document.getElementById('modal-chips');
+  chips.innerHTML = '';
+  PHASES.forEach((p, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.textContent = p.name;
+    const selected = mem.phaseIdx !== undefined ? mem.phaseIdx === i : phaseFor(ageYrs) === i;
+    if (selected) { btn.classList.add('sel'); btn.style.background = p.color; }
+    btn.onclick = () => {
+      document.querySelectorAll('#modal-chips .chip').forEach(b => { b.classList.remove('sel'); b.style.background = ''; });
+      btn.classList.add('sel'); btn.style.background = p.color;
+    };
+    chips.appendChild(btn);
+  });
+
+  document.getElementById('modal-note').value = mem.note || '';
+
+  // Reset to note tab
+  switchTab('note', document.getElementById('tab-btn-note'));
+
+  // Render media
+  renderPhotos();
+  renderVideos();
+  updateTabCounts();
+
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('backdrop').classList.add('on');
+  setTimeout(() => document.getElementById('modal-note').focus(), 350);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('backdrop').classList.remove('on');
+  S.selectedCell = null;
+}
+
+function saveMemory() {
+  if (!S.selectedCell) return;
+  const { r, c } = S.selectedCell;
+  const key  = `${r}-${c}`;
+  const note = document.getElementById('modal-note').value.trim();
+  const selChip = document.querySelector('#modal-chips .chip.sel');
+  const chips = Array.from(document.querySelectorAll('#modal-chips .chip'));
+  const phaseIdx = selChip ? chips.indexOf(selChip) : null;
+
+  const existing = S.memories[key] || {};
+  const photos = existing.photos || [];
+  const videos = existing.videos || [];
+
+  if (note || phaseIdx !== null || photos.length || videos.length)
+    S.memories[key] = { note, phaseIdx, photos, videos };
+  else
+    delete S.memories[key];
+
+  // Update cell indicators
+  const cell = document.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+  if (cell) {
+    const mem = S.memories[key];
+    cell.classList.toggle('noted',     !!mem?.note);
+    cell.classList.toggle('has-photo', !!(mem?.photos?.length));
+    cell.classList.toggle('has-video', !!(mem?.videos?.length));
+  }
+  closeModal();
+}
+
+// ── Tab switching ──────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.mem-tab').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('tab-' + name).classList.add('on');
+}
+
+function updateTabCounts() {
+  if (!S.selectedCell) return;
+  const key = `${S.selectedCell.r}-${S.selectedCell.c}`;
+  const mem = S.memories[key] || {};
+  const pc = (mem.photos || []).length;
+  const vc = (mem.videos || []).length;
+  document.getElementById('photo-count').textContent = pc > 0 ? pc : '';
+  document.getElementById('video-count').textContent = vc > 0 ? vc : '';
+}
+
+// ── Photo handling ─────────────────────────────────────
+function renderPhotos() {
+  if (!S.selectedCell) return;
+  const key = `${S.selectedCell.r}-${S.selectedCell.c}`;
+  const photos = (S.memories[key] || {}).photos || [];
+  const grid = document.getElementById('photo-grid');
+  grid.innerHTML = '';
+
+  photos.forEach((src, i) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'photo-thumb';
+    thumb.innerHTML = `
+      <img src="${src}" onclick="openLightbox('${src}')" style="cursor:zoom-in" />
+      <button class="remove-btn" onclick="removePhoto(${i})">×</button>`;
+    grid.appendChild(thumb);
+  });
+
+  // Add button
+  const addBtn = document.createElement('button');
+  addBtn.className = 'photo-add-btn';
+  addBtn.innerHTML = '+';
+  addBtn.title = 'Add photo';
+  addBtn.onclick = () => document.getElementById('photo-input').click();
+  grid.appendChild(addBtn);
+}
+
+function handlePhotoUpload(event) {
+  const files = Array.from(event.target.files);
+  if (!S.selectedCell || !files.length) return;
+  const key = `${S.selectedCell.r}-${S.selectedCell.c}`;
+  if (!S.memories[key]) S.memories[key] = { note: '', phaseIdx: undefined, photos: [], videos: [] };
+  if (!S.memories[key].photos) S.memories[key].photos = [];
+
+  let done = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      S.memories[key].photos.push(e.target.result);
+      done++;
+      if (done === files.length) { renderPhotos(); updateTabCounts(); }
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function removePhoto(idx) {
+  const key = `${S.selectedCell.r}-${S.selectedCell.c}`;
+  S.memories[key].photos.splice(idx, 1);
+  renderPhotos();
+  updateTabCounts();
+}
+
+function openLightbox(src) {
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lightbox-img').src = src;
+  lb.style.display = 'flex';
+}
+
+// ── Video handling ─────────────────────────────────────
+function renderVideos() {
+  if (!S.selectedCell) return;
+  const key = `${S.selectedCell.r}-${S.selectedCell.c}`;
+  const videos = (S.memories[key] || {}).videos || [];
+  const list = document.getElementById('video-list');
+  list.innerHTML = '';
+
+  videos.forEach((src, i) => {
+    const item = document.createElement('div');
+    item.className = 'video-item';
+    item.innerHTML = `
+      <video src="${src}" controls preload="metadata"></video>
+      <button class="remove-btn" onclick="removeVideo(${i})">×</button>`;
+    list.appendChild(item);
+  });
+}
+
+function handleVideoUpload(event) {
+  const files = Array.from(event.target.files);
+  if (!S.selectedCell || !files.length) return;
+  const key = `${S.selectedCell.r}-${S.selectedCell.c}`;
+  if (!S.memories[key]) S.memories[key] = { note: '', phaseIdx: undefined, photos: [], videos: [] };
+  if (!S.memories[key].videos) S.memories[key].videos = [];
+
+  let done = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      S.memories[key].videos.push(e.target.result);
+      done++;
+      if (done === files.length) { renderVideos(); updateTabCounts(); }
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function removeVideo(idx) {
+  const key = `${S.selectedCell.r}-${S.selectedCell.c}`;
+  S.memories[key].videos.splice(idx, 1);
+  renderVideos();
+  updateTabCounts();
+}
+
+// ══════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════
+function renderStats() {
+  const cwIdx  = currentWeekIdx();
+  const total  = S.lifespan * 52;
+  const rem    = Math.max(0, total - cwIdx);
+  const pct    = Math.min(100, cwIdx / total * 100);
+  const yrs    = Math.floor(cwIdx / 52);
+  const days   = Math.floor((TODAY - S.birthday) / MS_DAY);
+
+  document.getElementById('s-weeks').textContent = cwIdx.toLocaleString();
+  document.getElementById('s-age').textContent   = `${yrs} years, ${cwIdx % 52} weeks old`;
+  document.getElementById('s-years').textContent = yrs;
+  document.getElementById('s-days').textContent  = days.toLocaleString();
+  document.getElementById('s-rem').textContent   = `${rem.toLocaleString()} left`;
+  document.getElementById('s-pct').textContent   = `${pct.toFixed(1)}% lived`;
+  setTimeout(() => document.getElementById('s-prog').style.width = pct + '%', 200);
+
+  // Phase breakdown
+  const phDiv = document.getElementById('s-phases');
+  phDiv.innerHTML = '';
+  PHASES.forEach(p => {
+    const sw = p.start * 52, ew = p.end * 52;
+    const lived = Math.max(0, Math.min(cwIdx, ew) - sw);
+    const total_ph = ew - sw;
+    phDiv.innerHTML += `
+      <div class="phase-row">
+        <div class="phase-name">${p.name}</div>
+        <div class="phase-track"><div class="phase-fill" style="width:${Math.min(100,lived/total_ph*100).toFixed(1)}%;background:${p.color}"></div></div>
+        <div class="phase-yrs">${Math.floor(lived/52)}y</div>
+      </div>`;
+  });
+
+  // Mini grid (first 20 years × 52 weeks as 4px cells)
+  const miniRows = 20, mini = document.getElementById('s-mini');
+  mini.innerHTML = '';
+  for (let r = 0; r < miniRows; r++) {
+    const row = document.createElement('div'); row.className = 'mini-row';
+    for (let c = 0; c < 52; c++) {
+      const idx = r * 52 + c;
+      const cell = document.createElement('div'); cell.className = 'mini-cell';
+      const ph = phaseFor(r);
+      if (idx < cwIdx)       cell.style.background = PHASES[ph].color;
+      else if (idx === cwIdx) cell.style.background = 'var(--green)';
+      else                   cell.style.background = 'var(--future)';
+      row.appendChild(cell);
+    }
+    mini.appendChild(row);
+  }
+
+  // Fun fact
+  const summers = Math.round(rem / 52);
+  const moons   = Math.round(rem / 4.3);
+  document.getElementById('s-fact').innerHTML =
+    `You have roughly <strong>${summers} summers</strong> and <strong>${moons} full moons</strong> ahead of you.
+     Each single week is <strong>${(100/total).toFixed(3)}%</strong> of your entire life. Make it count.`;
+}
+
+// ══════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════
+function renderPhaseSettings() {
+  const el = document.getElementById('cfg-phases');
+  el.innerHTML = '';
+  PHASES.forEach(p => {
+    el.innerHTML += `
+      <div class="phase-set-row">
+        <div class="phase-swatch" style="background:${p.color}"></div>
+        <div class="phase-set-name">${p.name}</div>
+        <div class="phase-set-range">${p.start}–${p.end} yrs</div>
+      </div>`;
+  });
+}
+
+function applySettings() {
+  const bday = document.getElementById('cfg-bday').value;
+  const life = parseInt(document.getElementById('cfg-life').value);
+  if (bday) S.birthday = new Date(bday + 'T00:00:00');
+  if (life >= 50 && life <= 120) S.lifespan = life;
+  buildGrid();
+}
+
+// ══════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════
+function switchScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('screen-' + name).classList.add('active');
+  btn.classList.add('on');
+  if (name === 'stats') renderStats();
+}
+
+// ══════════════════════════════════════════
+//  ONBOARDING
+// ══════════════════════════════════════════
+function startApp() {
+  const bday = document.getElementById('ob-bday').value;
+  const life = parseInt(document.getElementById('ob-life').value);
+  if (bday) S.birthday = new Date(bday + 'T00:00:00');
+  if (life >= 50 && life <= 120) S.lifespan = life;
+
+  // Sync settings fields
+  document.getElementById('cfg-bday').value = bday;
+  document.getElementById('cfg-life').value = life;
+
+  const ob = document.getElementById('onboard');
+  ob.classList.add('hidden');
+  setTimeout(() => ob.style.display = 'none', 420);
+
+  buildGrid();
+  setTimeout(scrollToNow, 600);
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+(function init() {
+  // Pre-fill settings
+  document.getElementById('cfg-bday').value = '1990-01-15';
+  document.getElementById('cfg-life').value = '90';
+
+  // Show onboarding immediately
+  // (grid builds when startApp() is called)
+  renderPhaseSettings();
+})();
+</script>
+</body>
+</html>
