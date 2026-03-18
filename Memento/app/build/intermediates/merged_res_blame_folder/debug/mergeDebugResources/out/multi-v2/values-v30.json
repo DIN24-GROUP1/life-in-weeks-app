@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.example.memento.app-mergeDebugResources-37:/values-v30/values-v30.xml",
+            "map": [
+                {
+                    "source": "/home/mies/.gradle/caches/8.13/transforms/f6e4e3a732e59aec8dee991d2afb3628/transformed/material3/res/values-v30/values-v30.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "72",
+                        "endOffsets": "123"
+                    }
+                }
+            ]
+        }
+    ]
+}
