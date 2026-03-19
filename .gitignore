@@ -3,7 +3,8 @@
 /local.properties
 Memento/.idea/
 .DS_Store
-/build
+Memento/app/build
+Memento/build
 /captures
 .externalNativeBuild
 .cxx
