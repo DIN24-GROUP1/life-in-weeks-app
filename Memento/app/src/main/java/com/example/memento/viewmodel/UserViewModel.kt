@@ -8,11 +8,13 @@ import androidx.compose.runtime.remember
 
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
+@HiltViewModel
 class UserViewModel : ViewModel(){
 
     var date by mutableStateOf("")
