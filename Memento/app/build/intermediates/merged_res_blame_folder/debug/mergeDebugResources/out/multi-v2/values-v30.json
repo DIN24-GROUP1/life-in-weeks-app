@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.memento.app-mergeDebugResources-37:/values-v30/values-v30.xml",
+            "outputFile": "com.example.memento.app-mergeDebugResources-39:/values-v30/values-v30.xml",
             "map": [
                 {
-                    "source": "/home/mies/.gradle/caches/8.13/transforms/f6e4e3a732e59aec8dee991d2afb3628/transformed/material3/res/values-v30/values-v30.xml",
+                    "source": "/home/mies/.gradle/caches/8.13/transforms/1937934c553b38e4e5ee2e7534204394/transformed/material3/res/values-v30/values-v30.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
