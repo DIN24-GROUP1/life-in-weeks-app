@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MementoTheme {
                     StartScreen(
-                        viewModel = UserViewModel()
+
                     )
             }
         }
@@ -40,6 +40,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MementoPreview() {
     MementoTheme {
-        StartScreen(UserViewModel())
+        StartScreen()
     }
 }

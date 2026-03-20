@@ -23,10 +23,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 import com.example.memento.viewmodel.UserViewModel
 import java.util.Date
@@ -34,43 +36,49 @@ import java.util.Locale
 
 @Composable
 fun StartScreen(
-    viewModel: UserViewModel = UserViewModel(),
-    ) {
+    viewModel: UserViewModel = hiltViewModel(),
+) {
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
-    val selectedDate = datePickerState.selectedDateMillis?.let {
-        convertMillisToDate(it)
-    } ?: ""
-    Box(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+
+    // Read selected date from ViewModel
+    val selectedDate = viewModel.date
+
+    // React to changes
+    LaunchedEffect(datePickerState.selectedDateMillis) {
+        datePickerState.selectedDateMillis?.let { millis ->
+            viewModel.convertMillisToDate(millis)
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+
         OutlinedTextField(
             value = selectedDate,
             onValueChange = {},
             label = { Text("Date of Birth") },
             readOnly = true,
             trailingIcon = {
-                IconButton(onClick =  { showDatePicker = !showDatePicker } ) {
+                IconButton(onClick = { showDatePicker = true }) {
                     Icon(
                         imageVector = Icons.Default.DateRange,
                         contentDescription = "Select date"
                     )
                 }
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
+            modifier = Modifier.fillMaxWidth()
         )
+
         if (showDatePicker) {
             Popup(
-                onDismissRequest = { showDatePicker = false},
+                onDismissRequest = { showDatePicker = false },
                 alignment = Alignment.CenterStart
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .offset(y = 64.dp)
-                        .shadow(elevation = 4.dp)
+                        .shadow(4.dp)
                         .background(MaterialTheme.colorScheme.surface)
                         .padding(16.dp)
                 ) {
@@ -82,9 +90,4 @@ fun StartScreen(
             }
         }
     }
-}
-
-fun convertMillisToDate(millis: Long): String {
-    val formatter = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
-    return formatter.format(Date(millis))
 }

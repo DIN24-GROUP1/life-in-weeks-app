@@ -13,9 +13,12 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
+import javax.inject.Inject
 
 @HiltViewModel
-class UserViewModel : ViewModel(){
+class UserViewModel @Inject constructor(
+    private val dateFormatter: SimpleDateFormat,
+) : ViewModel() {
 
     var date by mutableStateOf("")
         private set
@@ -23,11 +26,14 @@ class UserViewModel : ViewModel(){
         private set
 
     fun convertMillisToDate(millis: Long) {
-        val formatter = SimpleDateFormat("dd/mm/yyyy", Locale.getDefault())
-        date = formatter.format(Date(millis))
+        date = dateFormatter.format(Date(millis))
     }
-    fun setLifeExpectancy(lifeInput: Int) {
+    fun updateLifeExpectancy(lifeInput: Int) {
         lifeExpectancy = lifeInput
+    }
+    init {
+        date = dateFormatter.format(Date())
+        lifeExpectancy = 90
     }
 
 }
