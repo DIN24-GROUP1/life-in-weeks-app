@@ -22,18 +22,14 @@ class UserViewModel @Inject constructor(
 
     var date by mutableStateOf("")
         private set
-    var lifeExpectancy by mutableIntStateOf(0)
+    var lifeExpectancy by mutableStateOf("")
         private set
 
     fun convertMillisToDate(millis: Long) {
         date = dateFormatter.format(Date(millis))
     }
-    fun updateLifeExpectancy(lifeInput: Int) {
+    fun updateLifeExpectancy(lifeInput: String) {
         lifeExpectancy = lifeInput
-    }
-    init {
-        date = dateFormatter.format(Date())
-        lifeExpectancy = 90
     }
 
 }

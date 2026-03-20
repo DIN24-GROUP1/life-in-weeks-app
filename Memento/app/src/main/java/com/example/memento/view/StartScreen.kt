@@ -1,12 +1,14 @@
 package com.example.memento.view
 
-import android.icu.text.SimpleDateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -18,30 +20,37 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.autofill.ContentDataType.Companion.Date
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
+
 import com.example.memento.viewmodel.UserViewModel
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun StartScreen(
     viewModel: UserViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
 
-    // Read selected date from ViewModel
+    val selectedLifeExpectancy = viewModel.lifeExpectancy
     val selectedDate = viewModel.date
 
     // React to changes
@@ -51,41 +60,92 @@ fun StartScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxWidth()) {
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .fillMaxWidth(),
 
-        OutlinedTextField(
-            value = selectedDate,
-            onValueChange = {},
-            label = { Text("Date of Birth") },
-            readOnly = true,
-            trailingIcon = {
-                IconButton(onClick = { showDatePicker = true }) {
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = "Select date"
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
+        contentAlignment = Alignment.Center
 
-        if (showDatePicker) {
-            Popup(
-                onDismissRequest = { showDatePicker = false },
-                alignment = Alignment.CenterStart
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth(0.8f)
+        ) {
+            Text(
+                text = "Your Life in Weeks",
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(16.dp),
+                fontSize = 30.sp,
+                style = TextStyle(lineBreak = LineBreak.Simple)
+            )
+            Text(
+                text = "Every square is one week of your life. Tap any to add a memory, note, or milestone.",
+                fontSize = 16.sp,
+            )
+            OutlinedTextField(
+                value = selectedDate,
+                onValueChange = {},
+                label = { Text("Date of Birth") },
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = "Select date"
+                        )
+                    }
+                },
+
+            )
+            OutlinedTextField(
+                value = selectedLifeExpectancy,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                onValueChange = { newValue ->
+                    val parsed = newValue.toIntOrNull()
+                    if (parsed == null || parsed <= 130) {
+                        viewModel.updateLifeExpectancy(newValue)
+                    }
+                },
+                label = { Text("Life expectancy in years") },
+                modifier = Modifier
+                    .padding(16.dp)
+
+            )
+
+            Button(
+                onClick = {},
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .fillMaxHeight(0.1f)
+
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .offset(y = 64.dp)
-                        .shadow(4.dp)
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(16.dp)
+                Text("Start My Timeline")
+            }
+            Text(
+                text = "Skip for now",
+                textDecoration = TextDecoration.Underline,
+                fontSize = 12.sp
+            )
+
+            if (showDatePicker) {
+                Popup(
+                    onDismissRequest = { showDatePicker = false },
+                    alignment = Alignment.CenterStart
                 ) {
-                    DatePicker(
-                        state = datePickerState,
-                        showModeToggle = false
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .offset(y = 64.dp)
+                            .shadow(4.dp)
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(16.dp)
+                    ) {
+                        DatePicker(
+                            state = datePickerState,
+                            showModeToggle = false
+                        )
+                    }
                 }
             }
         }
