@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.safeargs)
 
 }
 android {
@@ -21,7 +23,14 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-
+//    buildscript {
+//        repositories {
+//            google()
+//        }
+//        dependencies {
+//            classpath(libs.navigation.safeargs)
+//        }
+//    }
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -43,6 +52,7 @@ android {
     buildFeatures {
         compose = true
     }
+
     kapt {
         correctErrorTypes = true
     }
@@ -69,5 +79,10 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
     kapt(libs.hilt.compiler)
+    implementation(libs.kotlin.serialization.json)
+    implementation(libs.jetpack.navigation.compose)
+    implementation(libs.navigation.fragment)
+    implementation(libs.navigation.ui)
+    implementation(libs.navigation.features)
 
 }
