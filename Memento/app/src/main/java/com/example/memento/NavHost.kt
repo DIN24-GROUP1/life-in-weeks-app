@@ -30,6 +30,7 @@ fun MementoNavHost(
     NavHost(
         navController,
         startDestination = StartRoute,
+        modifier = modifier,
     ) {
         composable<StartRoute> {
             StartScreen()
