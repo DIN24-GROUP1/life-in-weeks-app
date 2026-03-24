@@ -10,6 +10,7 @@ Memento/app/build
 Memento/build
 
 ### IntelliJ / Android Studio ###
+.idea/
 Memento/.idea/
 .DS_Store
 
