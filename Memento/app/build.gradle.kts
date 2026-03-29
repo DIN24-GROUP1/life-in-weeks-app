@@ -91,6 +91,9 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
 
+    // Coil
+    implementation(libs.coil.compose)
+
     // Google Sign-In (Credential Manager)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play)

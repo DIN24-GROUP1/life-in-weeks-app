@@ -19,6 +19,8 @@ import com.example.memento.utils.routeToIndex
 import com.example.memento.view.StartScreen
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.HiltAndroidApp
+import com.google.firebase.auth.FirebaseAuth
+import android.util.Log
 
 @HiltAndroidApp
 class MementoApp: Application()
@@ -28,6 +30,9 @@ class MementoApp: Application()
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val auth = FirebaseAuth.getInstance()
+        // Initialize Firebase Auth
+        Log.d("Firebase", "Auth initialized. Current user: ${auth.currentUser}")
         enableEdgeToEdge()
         setContent {
             MementoTheme {
