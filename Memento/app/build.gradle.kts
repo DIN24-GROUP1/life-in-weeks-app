@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.safeargs)
-
+    alias(libs.plugins.google.services)
 }
 android {
     namespace = "com.example.memento"
@@ -85,4 +85,17 @@ dependencies {
     implementation(libs.navigation.ui)
     implementation(libs.navigation.features)
 
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
+
+    // Coil
+    implementation(libs.coil.compose)
+
+    // Google Sign-In (Credential Manager)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play)
+    implementation(libs.googleid)
 }

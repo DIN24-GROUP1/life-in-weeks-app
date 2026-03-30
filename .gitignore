@@ -1,11 +1,33 @@
+### Android / Gradle ###
 *.iml
 .gradle
 /local.properties
-Memento/.idea/
-.DS_Store
-Memento/app/build
-Memento/build
+local.properties
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+Memento/app/build
+Memento/build
+
+### IntelliJ / Android Studio ###
+.idea/
+Memento/.idea/
+.DS_Store
+
+### Firebase — sensitive, never commit ###
+# Contains API keys and project identifiers
+google-services.json
+
+### Signing keystores — never commit ###
+*.jks
+*.keystore
+keystore.properties
+
+### Environment / secrets ###
+.env
+.env.*
+*.secret
+secrets.properties
+
+### Claude Code ###
+.claude/
