@@ -1,10 +1,11 @@
 package com.example.memento.view
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,12 +16,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,11 +30,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -80,16 +83,12 @@ fun LifeGridScreen(
     val weeksRemaining = viewModel.user.lifeExpectancyYears * 52 - (currentWeekIdx + 1)
     val currentYear = (currentWeekIdx / 52).coerceAtLeast(0)
 
-    // Zoom state: pinch gesture updates scale, which scales the cell size
     var scale by remember { mutableFloatStateOf(1f) }
-
-    // Selected week as (year, weekOfYear) pair
     var selectedWeek by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     val listState = rememberLazyListState()
     val horizontalScrollState = rememberScrollState()
 
-    // Scroll to a few years above the current year so there's context above the green cell
     LaunchedEffect(Unit) {
         listState.scrollToItem((currentYear - 3).coerceAtLeast(0))
     }
@@ -98,8 +97,6 @@ fun LifeGridScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(ColorBg)
-            // Intercept pinch at Initial pass (before scrollables) so two-finger zoom
-            // is captured while single-finger scroll still reaches LazyColumn/horizontalScroll
             .pointerInput(Unit) {
                 awaitEachGesture {
                     var event = awaitPointerEvent(PointerEventPass.Initial)
@@ -114,18 +111,14 @@ fun LifeGridScreen(
                 }
             }
     ) {
-        // Derive base cell size from screen width; scale it up with zoom
         val baseCellSize = ((maxWidth - HorizontalPadding * 2 - YearLabelWidth - YearLabelGap - CellGap * 51) / 52)
             .coerceAtLeast(4.dp)
         val cellSize = baseCellSize * scale
-
-        // Total content width grows with scale — enables horizontal scroll when zoomed
         val contentWidth = HorizontalPadding * 2 + YearLabelWidth + YearLabelGap + cellSize * 52 + CellGap * 51
 
         Column(modifier = Modifier.fillMaxSize()) {
             GridHeader(currentWeekIdx, weeksRemaining)
 
-            // Horizontal scroll activates automatically when contentWidth > screen width
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -137,7 +130,7 @@ fun LifeGridScreen(
                         .width(contentWidth)
                         .padding(horizontal = HorizontalPadding)
                 ) {
-                    items(viewModel.user.lifeExpectancyYears) { year ->
+                    items(viewModel.user.lifeExpectancyYears, key = { it }) { year ->
                         YearRow(
                             year = year,
                             currentWeekIdx = currentWeekIdx,
@@ -184,9 +177,14 @@ private fun YearRow(
     selectedWeek: Pair<Int, Int>?,
     onWeekSelected: (week: Int) -> Unit
 ) {
+    val density = LocalDensity.current
+    val cellSizePx = remember(cellSize, density) { with(density) { cellSize.toPx() } }
+    val gapPx = remember(density) { with(density) { CellGap.toPx() } }
+    val cornerRadiusPx = remember(density) { with(density) { 1.dp.toPx() } }
+    val borderStrokePx = remember(density) { with(density) { 0.5.dp.toPx() } }
+
     Row(verticalAlignment = Alignment.CenterVertically) {
-        // Show year label every 5 years to avoid crowding.
-        // Reports zero layout height so it never inflates the row — text overflows visually.
+        // Year label — zero layout height so it never inflates the row
         Box(
             modifier = Modifier
                 .width(YearLabelWidth)
@@ -207,44 +205,62 @@ private fun YearRow(
 
         Spacer(Modifier.width(YearLabelGap))
 
-        for (week in 0 until 52) {
-            val weekIdx = year * 52 + week
-            WeekCell(
-                isPast = weekIdx < currentWeekIdx,
-                isNow = weekIdx == currentWeekIdx,
-                isSelected = selectedWeek?.first == year && selectedWeek.second == week,
-                cellSize = cellSize,
-                onClick = { onWeekSelected(week) }
-            )
-            if (week < 51) Spacer(Modifier.width(CellGap))
+        // All 52 cells drawn in a single Canvas pass — no per-cell composables
+        Canvas(
+            modifier = Modifier
+                .width(cellSize * 52 + CellGap * 51)
+                .height(cellSize)
+                .pointerInput(year, cellSizePx, gapPx) {
+                    detectTapGestures { offset ->
+                        val week = (offset.x / (cellSizePx + gapPx)).toInt().coerceIn(0, 51)
+                        onWeekSelected(week)
+                    }
+                }
+        ) {
+            val cr = CornerRadius(cornerRadiusPx)
+            for (week in 0 until 52) {
+                val weekIdx = year * 52 + week
+                val isSelected = selectedWeek?.first == year && selectedWeek.second == week
+                val x = week * (cellSizePx + gapPx)
+                val topLeft = Offset(x, 0f)
+                val cellRect = Size(cellSizePx, cellSizePx)
+
+                when {
+                    isSelected -> drawRoundRect(
+                        color = ColorSelected,
+                        topLeft = topLeft,
+                        size = cellRect,
+                        cornerRadius = cr
+                    )
+                    weekIdx == currentWeekIdx -> drawRoundRect(
+                        color = ColorNow,
+                        topLeft = topLeft,
+                        size = cellRect,
+                        cornerRadius = cr
+                    )
+                    weekIdx < currentWeekIdx -> drawRoundRect(
+                        color = ColorPast,
+                        topLeft = topLeft,
+                        size = cellRect,
+                        cornerRadius = cr
+                    )
+                    else -> {
+                        drawRoundRect(
+                            color = ColorFuture,
+                            topLeft = topLeft,
+                            size = cellRect,
+                            cornerRadius = cr
+                        )
+                        drawRoundRect(
+                            color = ColorFutureBorder,
+                            topLeft = topLeft,
+                            size = cellRect,
+                            cornerRadius = cr,
+                            style = Stroke(width = borderStrokePx)
+                        )
+                    }
+                }
+            }
         }
     }
-}
-
-@Composable
-private fun WeekCell(
-    isPast: Boolean,
-    isNow: Boolean,
-    isSelected: Boolean,
-    cellSize: Dp,
-    onClick: () -> Unit
-) {
-    val shape = RoundedCornerShape(1.dp)
-    Box(
-        modifier = Modifier
-            .size(cellSize)
-            .clip(shape)
-            .clickable(onClick = onClick)
-            .then(
-                // Future cells get a border instead of a fill to feel "empty"
-                when {
-                    isSelected -> Modifier.background(ColorSelected)
-                    isNow -> Modifier.background(ColorNow)
-                    isPast -> Modifier.background(ColorPast)
-                    else -> Modifier
-                        .background(ColorFuture)
-                        .border(0.5.dp, ColorFutureBorder, shape)
-                }
-            )
-    )
 }

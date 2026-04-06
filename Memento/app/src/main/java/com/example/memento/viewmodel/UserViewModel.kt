@@ -2,10 +2,7 @@ package com.example.memento.viewmodel
 
 import android.icu.text.SimpleDateFormat
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -14,7 +11,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 
 
@@ -33,6 +29,8 @@ class UserViewModel @Inject constructor(
     var lifeExpectancyText by mutableStateOf(
         savedStateHandle["lifeExpectancy"] ?: ""
     )
+        private set
+    var birthdayMillis by mutableStateOf<Long?>(null)
         private set
 
     val birthday: LocalDate?
