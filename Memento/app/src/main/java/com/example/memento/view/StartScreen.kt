@@ -1,5 +1,6 @@
 package com.example.memento.view
 
+import StartTimelineButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,13 +39,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.memento.LifeGridRoute
 
 
 import com.example.memento.viewmodel.UserViewModel
 
 @Composable
 fun StartScreen(
-    viewModel: UserViewModel = hiltViewModel(),
+    navController: NavController,
+    viewModel: UserViewModel,
     modifier: Modifier = Modifier
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
@@ -112,16 +116,8 @@ fun StartScreen(
                     .padding(16.dp)
 
             )
-
-            Button(
-                onClick = {},
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.1f)
-
-            ) {
-                Text("Start My Timeline")
-            }
+            val canNavigate = selectedDate.isNotBlank()
+            StartTimelineButton(navController, enabled = canNavigate)
             Text(
                 text = "Skip for now",
                 textDecoration = TextDecoration.Underline,

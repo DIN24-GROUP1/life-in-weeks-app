@@ -1,7 +1,9 @@
 package com.example.memento
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -11,6 +13,7 @@ import com.example.memento.view.LifeGridScreen
 import com.example.memento.view.SettingScreen
 import com.example.memento.view.StartScreen
 import com.example.memento.view.StatScreen
+import com.example.memento.viewmodel.UserViewModel
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -25,19 +28,22 @@ object LifeGridRoute
 @Composable
 fun MementoNavHost(
     navController: NavHostController = rememberNavController(),
-    modifier: Modifier,
+    modifier: Modifier
 ) {
+    val userVm: UserViewModel = hiltViewModel()
     NavHost(
-        navController,
-        startDestination = StartRoute,
-        modifier = modifier,
+        navController = navController,
+        startDestination = StartRoute
     ) {
+
         composable<StartRoute> {
-            StartScreen()
+            StartScreen(navController, userVm)
         }
+
         composable<LifeGridRoute> {
-            LifeGridScreen()
+            LifeGridScreen(userVm)
         }
+
         composable<SettingsRoute> {
             SettingScreen()
         }

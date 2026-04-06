@@ -66,24 +66,25 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-
-
-
-@Preview(showBackground = true)
-@Composable
-fun MementoPreview() {
-    MementoTheme {
-        Scaffold(
-            bottomBar = {
-                BottomNavBar(
-                    selectedIndex = 0,
-                    onItemSelected = {}
-                )
-            }
-        ) { innerPadding ->
-            StartScreen(modifier = Modifier.padding(innerPadding))
-        }
-    }
 }
-}
+
+
+
+
+//@Preview(showBackground = true)
+//@Composable
+//fun MementoPreview() {
+//    MementoTheme {
+//        Scaffold(
+//            bottomBar = {
+//                BottomNavBar(
+//                    selectedIndex = 0,
+//                    onItemSelected = {}
+//                )
+//            }
+//        ) { innerPadding ->
+//            StartScreen(modifier = Modifier.padding(innerPadding))
+//        }
+//    }
+//}
+//}

@@ -40,7 +40,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.example.memento.viewmodel.UserViewModel
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 private val ColorPast = Color(0xFF3D3D60)
@@ -59,20 +62,22 @@ private val YearLabelWidth = 20.dp
 private val YearLabelGap = 6.dp
 private val HorizontalPadding = 16.dp
 
-// Temporary dummy data — will be replaced by user input from ViewModel
-private val DummyBirthday = LocalDate.of(1990, 1, 15)
-private const val DummyLifeExpectancy = 90
-
 @Composable
-fun LifeGridScreen() {
+fun LifeGridScreen(
+    viewModel: UserViewModel = hiltViewModel()
+) {
+
     val today = remember { LocalDate.now() }
 
     // Weeks are indexed flat from birth: weekIdx = year * 52 + weekOfYear
     val currentWeekIdx = remember(today) {
-        val days = ChronoUnit.DAYS.between(DummyBirthday, today)
+        if (viewModel.birthday == null) {
+            return@remember -1
+        }
+        val days = ChronoUnit.DAYS.between(viewModel.birthday, today)
         if (days < 0) -1 else (days / 7).toInt()
     }
-    val weeksRemaining = DummyLifeExpectancy * 52 - (currentWeekIdx + 1)
+    val weeksRemaining = viewModel.lifeExpectancyYears * 52 - (currentWeekIdx + 1)
     val currentYear = (currentWeekIdx / 52).coerceAtLeast(0)
 
     // Zoom state: pinch gesture updates scale, which scales the cell size
@@ -132,7 +137,7 @@ fun LifeGridScreen() {
                         .width(contentWidth)
                         .padding(horizontal = HorizontalPadding)
                 ) {
-                    items(DummyLifeExpectancy) { year ->
+                    items(viewModel.lifeExpectancyYears) { year ->
                         YearRow(
                             year = year,
                             currentWeekIdx = currentWeekIdx,
