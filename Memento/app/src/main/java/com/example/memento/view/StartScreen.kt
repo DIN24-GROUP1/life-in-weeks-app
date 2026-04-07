@@ -113,11 +113,6 @@ fun StartScreen(
             )
             val canNavigate = birthdayText.isNotBlank()
             StartTimelineButton(navController, enabled = canNavigate)
-            Text(
-                text = "Skip for now",
-                textDecoration = TextDecoration.Underline,
-                fontSize = 12.sp
-            )
 
             if (showDatePicker) {
                 Popup(
