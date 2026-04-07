@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import com.example.memento.model.UserModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -16,40 +17,53 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
+
+
 @HiltViewModel
 class UserViewModel @Inject constructor(
     private val dateFormatter: SimpleDateFormat,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    var date by mutableStateOf(
+    var birthdayText by mutableStateOf(
         savedStateHandle["date"] ?: ""
     )
         private set
 
-    var lifeExpectancy by mutableStateOf(
+    var lifeExpectancyText by mutableStateOf(
         savedStateHandle["lifeExpectancy"] ?: ""
     )
-
         private set
+
     val birthday: LocalDate?
         get() = runCatching {
             LocalDate.parse(
-                date,
+                birthdayText,
                 DateTimeFormatter.ofPattern("dd.MM.yyyy")
             )
         }.getOrNull()
 
     val lifeExpectancyYears: Int
-        get() = lifeExpectancy.toIntOrNull() ?: 90
+        get() = lifeExpectancyText.toIntOrNull() ?: 90
+
+
+    val user: UserModel
+        get() = UserModel(
+            birthday = birthday,
+            lifeExpectancyYears = lifeExpectancyYears
+        )
+
+
     fun convertMillisToDate(millis: Long) {
         val formatted = dateFormatter.format(Date(millis))
-        date = formatted
+        birthdayText = formatted
         savedStateHandle["date"] = formatted
     }
 
-    fun updateLifeExpectancy(lifeInput: String) {
-        lifeExpectancy = lifeInput
-        savedStateHandle["lifeExpectancy"] = lifeInput
+    fun updateLifeExpectancy(input: String) {
+        lifeExpectancyText = input
+        savedStateHandle["lifeExpectancy"] = input
     }
+
+
 }
