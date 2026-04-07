@@ -1,11 +1,10 @@
 package com.example.memento.model
 
-import java.util.Date
+import java.time.LocalDate
 
 data class UserModel(
-    val year: Int,
-    val month: Int,
-    val day: Int,
-    val date: Date,
-    val name: String
+    val name: String = "",
+    val birthday: LocalDate? = null,
+    val lifeExpectancyYears: Int = 90,
 )
+

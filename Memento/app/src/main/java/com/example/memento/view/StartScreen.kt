@@ -105,12 +105,7 @@ fun StartScreen(
             OutlinedTextField(
                 value = selectedLifeExpectancy,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                onValueChange = { newValue ->
-                    val parsed = newValue.toIntOrNull()
-                    if (parsed == null || parsed <= 130) {
-                        viewModel.updateLifeExpectancy(newValue)
-                    }
-                },
+                onValueChange = viewModel::updateLifeExpectancy,
                 label = { Text("Life expectancy in years") },
                 modifier = Modifier
                     .padding(16.dp)
