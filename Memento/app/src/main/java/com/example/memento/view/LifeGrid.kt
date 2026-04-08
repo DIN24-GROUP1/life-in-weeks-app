@@ -15,12 +15,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,15 +63,19 @@ private val ColorFuture = Color(0xFF181828)
 private val ColorFutureBorder = Color(0xFF222238)
 private val ColorMuted = Color(0xFF5A5A80)
 private val ColorSurface = Color(0xFF16162A)
+private val ColorSurface2 = Color(0xFF1E1E35)
 private val ColorBg = Color(0xFF0D0D1A)
 private val ColorText = Color(0xFFE8E8F5)
 private val ColorBorder = Color(0xFF2A2A48)
+private val ColorAccent = Color(0xFF7C3AED)
+private val ColorAccentSoft = Color(0xFFA78BFA)
 
 private val CellGap = 1.dp
 private val YearLabelWidth = 20.dp
 private val YearLabelGap = 6.dp
 private val HorizontalPadding = 16.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LifeGridScreen(
     viewModel: UserViewModel = hiltViewModel()
@@ -141,6 +152,24 @@ fun LifeGridScreen(
                         Spacer(Modifier.height(CellGap))
                     }
                 }
+            }
+        }
+
+        // Week detail bottom sheet
+        selectedWeek?.let { (year, week) ->
+            ModalBottomSheet(
+                onDismissRequest = { selectedWeek = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = ColorSurface,
+                contentColor = ColorText,
+                scrimColor = Color(0x8C000000),
+            ) {
+                WeekDetailContent(
+                    year = year,
+                    week = week,
+                    birthday = birthday,
+                    currentWeekIdx = currentWeekIdx,
+                )
             }
         }
     }
@@ -262,5 +291,124 @@ private fun YearRow(
                 }
             }
         }
+    }
+}
+
+// ── Week detail bottom sheet ────────────────────────────────────────────────
+
+@Composable
+private fun WeekDetailContent(
+    year: Int,
+    week: Int,
+    birthday: LocalDate,
+    currentWeekIdx: Int,
+) {
+    val weekIdx = year * 52 + week
+    val weekStart = remember(birthday, weekIdx) { birthday.plusDays(weekIdx * 7L) }
+    val weekEnd = remember(weekStart) { weekStart.plusDays(6) }
+
+    val shortFmt = remember { DateTimeFormatter.ofPattern("MMM d") }
+    val longFmt = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
+    val dateRange = remember(weekStart, weekEnd) {
+        "${weekStart.format(shortFmt)} – ${weekEnd.format(longFmt)}"
+    }
+
+    // Local note state — will be replaced with Room-backed state later
+    var noteText by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 32.dp)
+    ) {
+        // Badge
+        WeekBadge(weekIdx = weekIdx, currentWeekIdx = currentWeekIdx)
+
+        Spacer(Modifier.height(10.dp))
+
+        // Title
+        Text(
+            text = "Year $year · Week ${week + 1}",
+            color = ColorText,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = (-0.4).sp,
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        // Date range + age
+        Text(
+            text = dateRange,
+            color = ColorMuted,
+            fontSize = 12.sp,
+        )
+        Text(
+            text = "Age $year",
+            color = ColorMuted,
+            fontSize = 12.sp,
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        // Note field
+        Text(
+            text = "NOTE",
+            color = ColorMuted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.sp,
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = noteText,
+            onValueChange = { noteText = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 100.dp),
+            placeholder = {
+                Text(
+                    text = "What happened this week?",
+                    color = ColorMuted,
+                    fontSize = 14.sp,
+                )
+            },
+            shape = RoundedCornerShape(13.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = ColorAccent,
+                unfocusedBorderColor = ColorBorder,
+                focusedTextColor = ColorText,
+                unfocusedTextColor = ColorText,
+                cursorColor = ColorAccentSoft,
+                focusedContainerColor = ColorSurface2,
+                unfocusedContainerColor = ColorSurface2,
+            ),
+            maxLines = 8,
+        )
+    }
+}
+
+@Composable
+private fun WeekBadge(weekIdx: Int, currentWeekIdx: Int) {
+    val (label, textColor, bgColor) = when {
+        weekIdx == currentWeekIdx -> Triple("NOW", ColorNow, Color(0x2622C55E))
+        weekIdx < currentWeekIdx -> Triple("PAST", ColorMuted, Color(0x335A5A80))
+        else -> Triple("FUTURE", ColorAccentSoft, Color(0x267C3AED))
+    }
+    Box(
+        modifier = Modifier
+            .background(bgColor, RoundedCornerShape(6.dp))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+        )
     }
 }
