@@ -44,7 +44,7 @@ fun MementoNavHost(
         }
 
         composable<SettingsRoute> {
-            SettingScreen()
+            SettingScreen(viewModel = userVm)
         }
         composable<StatsRoute> {
             StatScreen()

@@ -6,19 +6,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.memento.db.LifePhaseDao
+import com.example.memento.model.LifePhase
 import com.example.memento.model.UserModel
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Date
 import javax.inject.Inject
 
 
-
 @HiltViewModel
 class UserViewModel @Inject constructor(
     private val dateFormatter: SimpleDateFormat,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val phaseDao: LifePhaseDao,
 ) : ViewModel() {
 
     var birthdayText by mutableStateOf(
@@ -29,8 +36,6 @@ class UserViewModel @Inject constructor(
     var lifeExpectancyText by mutableStateOf(
         savedStateHandle["lifeExpectancy"] ?: ""
     )
-        private set
-    var birthdayMillis by mutableStateOf<Long?>(null)
         private set
 
     val birthday: LocalDate?
@@ -44,13 +49,14 @@ class UserViewModel @Inject constructor(
     val lifeExpectancyYears: Int
         get() = lifeExpectancyText.toIntOrNull() ?: 90
 
-
     val user: UserModel
         get() = UserModel(
             birthday = birthday,
             lifeExpectancyYears = lifeExpectancyYears
         )
 
+    val phases: StateFlow<List<LifePhase>> = phaseDao.getAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun convertMillisToDate(millis: Long) {
         val formatted = dateFormatter.format(Date(millis))
@@ -63,5 +69,7 @@ class UserViewModel @Inject constructor(
         savedStateHandle["lifeExpectancy"] = input
     }
 
-
+    fun addPhase(phase: LifePhase) = viewModelScope.launch { phaseDao.insert(phase) }
+    fun updatePhase(phase: LifePhase) = viewModelScope.launch { phaseDao.update(phase) }
+    fun deletePhase(phase: LifePhase) = viewModelScope.launch { phaseDao.delete(phase) }
 }

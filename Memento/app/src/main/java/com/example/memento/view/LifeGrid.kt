@@ -3,6 +3,7 @@ package com.example.memento.view
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -50,7 +51,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.compose.runtime.collectAsState
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.memento.model.LifePhase
 import com.example.memento.viewmodel.UserViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -96,9 +99,27 @@ fun LifeGridScreen(
 
     var scale by remember { mutableFloatStateOf(1f) }
     var selectedWeek by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var phasesEnabled by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
     val horizontalScrollState = rememberScrollState()
+
+    val phases by viewModel.phases.collectAsState()
+    val birthday = viewModel.user.birthday
+
+    // Precompute weekIdx → colorArgb map — O(1) lookup per cell during draw
+    val phaseColorMap: Map<Int, Int> = remember(phases, birthday) {
+        val bd = birthday ?: return@remember emptyMap()
+        buildMap {
+            phases.forEach { phase ->
+                val startIdx = (ChronoUnit.DAYS.between(bd, LocalDate.ofEpochDay(phase.startEpochDay)) / 7)
+                    .toInt().coerceAtLeast(0)
+                val endIdx = (ChronoUnit.DAYS.between(bd, LocalDate.ofEpochDay(phase.endEpochDay)) / 7)
+                    .toInt()
+                for (idx in startIdx..endIdx) put(idx, phase.colorArgb)
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         listState.scrollToItem((currentYear - 3).coerceAtLeast(0))
@@ -127,8 +148,16 @@ fun LifeGridScreen(
         val cellSize = baseCellSize * scale
         val contentWidth = HorizontalPadding * 2 + YearLabelWidth + YearLabelGap + cellSize * 52 + CellGap * 51
 
+        val activePhaseMap = if (phasesEnabled) phaseColorMap else emptyMap()
+
         Column(modifier = Modifier.fillMaxSize()) {
             GridHeader(currentWeekIdx, weeksRemaining)
+
+            // Toolbar: phases toggle
+            PhasesToolbar(
+                phasesEnabled = phasesEnabled,
+                onToggle = { phasesEnabled = !phasesEnabled }
+            )
 
             Box(
                 modifier = Modifier
@@ -147,6 +176,7 @@ fun LifeGridScreen(
                             currentWeekIdx = currentWeekIdx,
                             cellSize = cellSize,
                             selectedWeek = selectedWeek,
+                            phaseColorMap = activePhaseMap,
                             onWeekSelected = { week -> selectedWeek = Pair(year, week) }
                         )
                         Spacer(Modifier.height(CellGap))
@@ -167,10 +197,42 @@ fun LifeGridScreen(
                 WeekDetailContent(
                     year = year,
                     week = week,
-                    birthday = birthday,
+                    birthday = birthday ?: LocalDate.now(),
                     currentWeekIdx = currentWeekIdx,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PhasesToolbar(
+    phasesEnabled: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ColorSurface)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .background(
+                    color = if (phasesEnabled) ColorAccent else Color.Transparent,
+                    shape = RoundedCornerShape(50)
+                )
+                .border(1.dp, ColorAccent, RoundedCornerShape(50))
+                .clickable(onClick = onToggle)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = if (phasesEnabled) "◉  Phases" else "○  Phases",
+                color = if (phasesEnabled) Color.White else ColorAccentSoft,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }
@@ -204,6 +266,7 @@ private fun YearRow(
     currentWeekIdx: Int,
     cellSize: Dp,
     selectedWeek: Pair<Int, Int>?,
+    phaseColorMap: Map<Int, Int>,
     onWeekSelected: (week: Int) -> Unit
 ) {
     val density = LocalDensity.current
@@ -253,6 +316,7 @@ private fun YearRow(
                 val x = week * (cellSizePx + gapPx)
                 val topLeft = Offset(x, 0f)
                 val cellRect = Size(cellSizePx, cellSizePx)
+                val phaseColor = phaseColorMap[weekIdx]
 
                 when {
                     isSelected -> drawRoundRect(
@@ -267,6 +331,27 @@ private fun YearRow(
                         size = cellRect,
                         cornerRadius = cr
                     )
+                    phaseColor != null && weekIdx < currentWeekIdx -> drawRoundRect(
+                        color = Color(phaseColor).copy(alpha = 0.85f),
+                        topLeft = topLeft,
+                        size = cellRect,
+                        cornerRadius = cr
+                    )
+                    phaseColor != null -> {
+                        drawRoundRect(
+                            color = Color(phaseColor).copy(alpha = 0.35f),
+                            topLeft = topLeft,
+                            size = cellRect,
+                            cornerRadius = cr
+                        )
+                        drawRoundRect(
+                            color = Color(phaseColor).copy(alpha = 0.6f),
+                            topLeft = topLeft,
+                            size = cellRect,
+                            cornerRadius = cr,
+                            style = Stroke(width = borderStrokePx)
+                        )
+                    }
                     weekIdx < currentWeekIdx -> drawRoundRect(
                         color = ColorPast,
                         topLeft = topLeft,
