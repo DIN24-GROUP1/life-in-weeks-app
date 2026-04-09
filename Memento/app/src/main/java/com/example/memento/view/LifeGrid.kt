@@ -71,13 +71,13 @@ fun LifeGridScreen(
 
     // Weeks are indexed flat from birth: weekIdx = year * 52 + weekOfYear
     val currentWeekIdx = remember(today) {
-        if (viewModel.birthday == null) {
+        if (viewModel.user.birthday == null) {
             return@remember -1
         }
-        val days = ChronoUnit.DAYS.between(viewModel.birthday, today)
+        val days = ChronoUnit.DAYS.between(viewModel.user.birthday, today)
         if (days < 0) -1 else (days / 7).toInt()
     }
-    val weeksRemaining = viewModel.lifeExpectancyYears * 52 - (currentWeekIdx + 1)
+    val weeksRemaining = viewModel.user.lifeExpectancyYears * 52 - (currentWeekIdx + 1)
     val currentYear = (currentWeekIdx / 52).coerceAtLeast(0)
 
     // Zoom state: pinch gesture updates scale, which scales the cell size
@@ -137,7 +137,7 @@ fun LifeGridScreen(
                         .width(contentWidth)
                         .padding(horizontal = HorizontalPadding)
                 ) {
-                    items(viewModel.lifeExpectancyYears) { year ->
+                    items(viewModel.user.lifeExpectancyYears) { year ->
                         YearRow(
                             year = year,
                             currentWeekIdx = currentWeekIdx,

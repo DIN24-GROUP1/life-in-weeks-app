@@ -54,10 +54,10 @@ fun StartScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
 
-    val selectedLifeExpectancy = viewModel.lifeExpectancy
-    val selectedDate = viewModel.date
+    val birthdayText = viewModel.birthdayText
+    val lifeExpectancyText = viewModel.lifeExpectancyText
 
-    // React to changes
+
     LaunchedEffect(datePickerState.selectedDateMillis) {
         datePickerState.selectedDateMillis?.let { millis ->
             viewModel.convertMillisToDate(millis)
@@ -88,7 +88,7 @@ fun StartScreen(
                 fontSize = 16.sp,
             )
             OutlinedTextField(
-                value = selectedDate,
+                value = birthdayText,
                 onValueChange = {},
                 label = { Text("Date of Birth") },
                 readOnly = true,
@@ -103,26 +103,16 @@ fun StartScreen(
 
             )
             OutlinedTextField(
-                value = selectedLifeExpectancy,
+                value = lifeExpectancyText,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                onValueChange = { newValue ->
-                    val parsed = newValue.toIntOrNull()
-                    if (parsed == null || parsed <= 130) {
-                        viewModel.updateLifeExpectancy(newValue)
-                    }
-                },
+                onValueChange = viewModel::updateLifeExpectancy,
                 label = { Text("Life expectancy in years") },
                 modifier = Modifier
                     .padding(16.dp)
 
             )
-            val canNavigate = selectedDate.isNotBlank()
+            val canNavigate = birthdayText.isNotBlank()
             StartTimelineButton(navController, enabled = canNavigate)
-            Text(
-                text = "Skip for now",
-                textDecoration = TextDecoration.Underline,
-                fontSize = 12.sp
-            )
 
             if (showDatePicker) {
                 Popup(
