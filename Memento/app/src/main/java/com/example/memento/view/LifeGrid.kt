@@ -420,7 +420,7 @@ private fun WeekDetailContent(
         // Tags section
         Text(
             text = "TAGS",
-            color = ColorMuted,
+            color = c.muted,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 1.sp,
@@ -438,11 +438,11 @@ private fun WeekDetailContent(
             Box(
                 modifier = Modifier
                     .background(Color.Transparent, RoundedCornerShape(50))
-                    .border(1.dp, ColorBorder, RoundedCornerShape(50))
+                    .border(1.dp, c.border, RoundedCornerShape(50))
                     .clickable { showTagPicker = true }
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Text("+ Add tag", color = ColorAccentSoft, fontSize = 13.sp)
+                Text("+ Add tag", color = c.accentSoft, fontSize = 13.sp)
             }
         }
     }
@@ -459,22 +459,23 @@ private fun WeekDetailContent(
 
 @Composable
 private fun TagChip(tag: String, onRemove: () -> Unit) {
+    val c = LocalAppColors.current
     Row(
         modifier = Modifier
-            .background(ColorAccent.copy(alpha = 0.18f), RoundedCornerShape(50))
-            .border(1.dp, ColorAccent.copy(alpha = 0.5f), RoundedCornerShape(50))
+            .background(c.accent.copy(alpha = 0.18f), RoundedCornerShape(50))
+            .border(1.dp, c.accent.copy(alpha = 0.5f), RoundedCornerShape(50))
             .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(tag, color = ColorAccentSoft, fontSize = 13.sp)
+        Text(tag, color = c.accentSoft, fontSize = 13.sp)
         Box(
             modifier = Modifier
                 .clickable(onClick = onRemove)
                 .padding(horizontal = 4.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text("×", color = ColorAccentSoft, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("×", color = c.accentSoft, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -493,10 +494,11 @@ private fun TagPickerDialog(
     }
     var customTagInput by remember { mutableStateOf("") }
 
+    val c = LocalAppColors.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = ColorSurface,
-        titleContentColor = ColorText,
+        containerColor = c.surface,
+        titleContentColor = c.text,
         title = { Text("Add Tags", fontWeight = FontWeight.Bold) },
         text = {
             Column {
@@ -509,12 +511,12 @@ private fun TagPickerDialog(
                         Box(
                             modifier = Modifier
                                 .background(
-                                    if (isActive) ColorAccent else ColorSurface2,
+                                    if (isActive) c.accent else c.surface2,
                                     RoundedCornerShape(50)
                                 )
                                 .border(
                                     1.dp,
-                                    if (isActive) ColorAccent else ColorBorder,
+                                    if (isActive) c.accent else c.border,
                                     RoundedCornerShape(50)
                                 )
                                 .clickable {
@@ -525,7 +527,7 @@ private fun TagPickerDialog(
                         ) {
                             Text(
                                 text = tag,
-                                color = if (isActive) Color.White else ColorAccentSoft,
+                                color = if (isActive) Color.White else c.accentSoft,
                                 fontSize = 13.sp,
                             )
                         }
@@ -542,22 +544,22 @@ private fun TagPickerDialog(
                         value = customTagInput,
                         onValueChange = { customTagInput = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Custom tag…", color = ColorMuted, fontSize = 13.sp) },
+                        placeholder = { Text("Custom tag…", color = c.muted, fontSize = 13.sp) },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ColorAccent,
-                            unfocusedBorderColor = ColorBorder,
-                            focusedTextColor = ColorText,
-                            unfocusedTextColor = ColorText,
-                            cursorColor = ColorAccentSoft,
-                            focusedContainerColor = ColorSurface2,
-                            unfocusedContainerColor = ColorSurface2,
+                            focusedBorderColor = c.accent,
+                            unfocusedBorderColor = c.border,
+                            focusedTextColor = c.text,
+                            unfocusedTextColor = c.text,
+                            cursorColor = c.accentSoft,
+                            focusedContainerColor = c.surface2,
+                            unfocusedContainerColor = c.surface2,
                         ),
                     )
                     Box(
                         modifier = Modifier
-                            .background(ColorAccent, RoundedCornerShape(10.dp))
+                            .background(c.accent, RoundedCornerShape(10.dp))
                             .clickable {
                                 val trimmed = customTagInput.trim()
                                 if (trimmed.isNotEmpty()) {
@@ -575,7 +577,7 @@ private fun TagPickerDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done", color = ColorAccentSoft, fontWeight = FontWeight.SemiBold)
+                Text("Done", color = c.accentSoft, fontWeight = FontWeight.SemiBold)
             }
         },
     )
