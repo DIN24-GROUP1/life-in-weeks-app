@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 
 import com.example.memento.view.LifeGridScreen
+import com.example.memento.view.LoginScreen
 import com.example.memento.view.SettingScreen
 import com.example.memento.view.StartScreen
 import com.example.memento.view.StatScreen
@@ -16,14 +17,11 @@ import com.example.memento.viewmodel.AuthViewModel
 import com.example.memento.viewmodel.UserViewModel
 import kotlinx.serialization.Serializable
 
-@Serializable
-object StatsRoute
-@Serializable
-object StartRoute
-@Serializable
-object SettingsRoute
-@Serializable
-object LifeGridRoute
+@Serializable object LoginRoute
+@Serializable object StartRoute
+@Serializable object LifeGridRoute
+@Serializable object StatsRoute
+@Serializable object SettingsRoute
 
 @Composable
 fun MementoNavHost(
@@ -32,10 +30,15 @@ fun MementoNavHost(
 ) {
     val userVm: UserViewModel = hiltViewModel()
     val authVm: AuthViewModel = hiltViewModel()
+
     NavHost(
         navController = navController,
-        startDestination = StartRoute
+        startDestination = LoginRoute,
+        modifier = modifier,
     ) {
+        composable<LoginRoute> {
+            LoginScreen(navController, authVm)
+        }
 
         composable<StartRoute> {
             StartScreen(navController, userVm)
@@ -48,6 +51,7 @@ fun MementoNavHost(
         composable<SettingsRoute> {
             SettingScreen(viewModel = userVm, authViewModel = authVm)
         }
+
         composable<StatsRoute> {
             StatScreen()
         }

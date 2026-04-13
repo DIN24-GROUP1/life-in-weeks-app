@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,6 +34,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -43,6 +47,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -104,7 +109,12 @@ fun SettingScreen(viewModel: UserViewModel, authViewModel: AuthViewModel) {
             .background(SBg)
     ) {
         // Account section
-        AccountSection(authViewModel = authViewModel, onSignIn = { authViewModel.signInWithGoogle(context) })
+        AccountSection(authViewModel = authViewModel, onGoogleSignIn = { authViewModel.signInWithGoogle(context) })
+
+        HorizontalDivider(color = SBorder, thickness = 1.dp)
+
+        // Profile section
+        ProfileSection(viewModel = viewModel)
 
         HorizontalDivider(color = SBorder, thickness = 1.dp)
 
@@ -397,8 +407,123 @@ fun SettingScreen(viewModel: UserViewModel, authViewModel: AuthViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AccountSection(authViewModel: AuthViewModel, onSignIn: () -> Unit) {
+private fun ProfileSection(viewModel: UserViewModel) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SSurface)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+        Text(
+            text = "PROFILE",
+            color = SMuted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.sp,
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // Birthday field
+        Box {
+            OutlinedTextField(
+                value = viewModel.birthdayText.ifBlank { "Not set" },
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Date of Birth", color = SMuted) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(Icons.Default.DateRange, contentDescription = "Pick date", tint = SMuted)
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = SAccent,
+                    unfocusedBorderColor = SBorder,
+                    focusedTextColor = SText,
+                    unfocusedTextColor = if (viewModel.birthdayText.isBlank()) SMuted else SText,
+                    focusedContainerColor = SSurface,
+                    unfocusedContainerColor = SSurface,
+                ),
+            )
+            if (showDatePicker) {
+                Popup(
+                    onDismissRequest = { showDatePicker = false },
+                    alignment = Alignment.TopStart,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .offset(y = 4.dp)
+                            .shadow(8.dp)
+                            .background(SSurface, RoundedCornerShape(12.dp))
+                            .padding(8.dp)
+                    ) {
+                        Column {
+                            DatePicker(state = datePickerState, showModeToggle = false)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { showDatePicker = false }) {
+                                    Text("Cancel", color = SMuted)
+                                }
+                                TextButton(onClick = {
+                                    datePickerState.selectedDateMillis?.let { millis ->
+                                        viewModel.convertMillisToDate(millis)
+                                    }
+                                    showDatePicker = false
+                                }) {
+                                    Text("OK", color = SAccentSoft)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Life expectancy field
+        OutlinedTextField(
+            value = viewModel.lifeExpectancyText,
+            onValueChange = viewModel::updateLifeExpectancy,
+            label = { Text("Life expectancy (years)", color = SMuted) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            placeholder = { Text("90", color = SMuted) },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = SAccent,
+                unfocusedBorderColor = SBorder,
+                focusedTextColor = SText,
+                unfocusedTextColor = SText,
+                cursorColor = SAccentSoft,
+                focusedContainerColor = SSurface,
+                unfocusedContainerColor = SSurface,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun AccountSection(authViewModel: AuthViewModel, onGoogleSignIn: () -> Unit) {
+    // 0 = Google, 1 = Email
+    var selectedTab by remember { mutableIntStateOf(0) }
+    var emailInput by remember { mutableStateOf("") }
+    var passwordInput by remember { mutableStateOf("") }
+    // true = Sign in, false = Register
+    var isSignInMode by remember { mutableStateOf(true) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -414,7 +539,7 @@ private fun AccountSection(authViewModel: AuthViewModel, onSignIn: () -> Unit) {
         )
         Spacer(Modifier.height(12.dp))
 
-        if (authViewModel.isSignedInWithGoogle) {
+        if (authViewModel.isSignedIn) {
             authViewModel.displayName?.let {
                 Text(text = it, color = SText, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
@@ -432,23 +557,116 @@ private fun AccountSection(authViewModel: AuthViewModel, onSignIn: () -> Unit) {
             }
         } else {
             Text(
-                text = "Using anonymously — sign in with Google to sync your data across devices.",
+                text = "Sign in to sync your data across devices.",
                 color = SMuted,
                 fontSize = 13.sp,
             )
             Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onSignIn,
-                enabled = !authViewModel.isLoading,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = SAccent),
+
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = SSurface2,
+                contentColor = SAccentSoft,
             ) {
-                Text(
-                    text = if (authViewModel.isLoading) "Signing in…" else "Sign in with Google",
-                    color = Color.White,
-                    fontWeight = FontWeight.SemiBold
+                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
+                    Text("Google", modifier = Modifier.padding(vertical = 10.dp), color = if (selectedTab == 0) SAccentSoft else SMuted)
+                }
+                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }) {
+                    Text("Email", modifier = Modifier.padding(vertical = 10.dp), color = if (selectedTab == 1) SAccentSoft else SMuted)
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            if (selectedTab == 0) {
+                Button(
+                    onClick = onGoogleSignIn,
+                    enabled = !authViewModel.isLoading,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = SAccent),
+                ) {
+                    Text(
+                        text = if (authViewModel.isLoading) "Signing in…" else "Sign in with Google",
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            } else {
+                // Sign in / Register toggle
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    TextButton(onClick = { isSignInMode = true }) {
+                        Text("Sign in", color = if (isSignInMode) SAccentSoft else SMuted)
+                    }
+                    TextButton(onClick = { isSignInMode = false }) {
+                        Text("Register", color = if (!isSignInMode) SAccentSoft else SMuted)
+                    }
+                }
+
+                OutlinedTextField(
+                    value = emailInput,
+                    onValueChange = { emailInput = it },
+                    label = { Text("Email", color = SMuted) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = SAccent,
+                        unfocusedBorderColor = SBorder,
+                        focusedTextColor = SText,
+                        unfocusedTextColor = SText,
+                        cursorColor = SAccentSoft,
+                        focusedContainerColor = SSurface,
+                        unfocusedContainerColor = SSurface,
+                    ),
                 )
+
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = passwordInput,
+                    onValueChange = { passwordInput = it },
+                    label = { Text("Password", color = SMuted) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = SAccent,
+                        unfocusedBorderColor = SBorder,
+                        focusedTextColor = SText,
+                        unfocusedTextColor = SText,
+                        cursorColor = SAccentSoft,
+                        focusedContainerColor = SSurface,
+                        unfocusedContainerColor = SSurface,
+                    ),
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        if (isSignInMode) {
+                            authViewModel.signInWithEmail(emailInput, passwordInput)
+                        } else {
+                            authViewModel.registerWithEmail(emailInput, passwordInput)
+                        }
+                    },
+                    enabled = !authViewModel.isLoading && emailInput.isNotBlank() && passwordInput.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = SAccent),
+                ) {
+                    Text(
+                        text = when {
+                            authViewModel.isLoading -> "Please wait…"
+                            isSignInMode -> "Sign in"
+                            else -> "Register"
+                        },
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 

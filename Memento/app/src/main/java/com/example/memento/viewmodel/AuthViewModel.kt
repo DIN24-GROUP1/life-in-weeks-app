@@ -16,6 +16,8 @@ class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
 ) : ViewModel() {
 
+    var isSignedIn by mutableStateOf(authRepository.isSignedIn)
+        private set
     var isSignedInWithGoogle by mutableStateOf(authRepository.isSignedInWithGoogle)
         private set
     var displayName by mutableStateOf(authRepository.displayName)
@@ -27,16 +29,41 @@ class AuthViewModel @Inject constructor(
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
+    private fun refreshState() {
+        isSignedIn = authRepository.isSignedIn
+        isSignedInWithGoogle = authRepository.isSignedInWithGoogle
+        displayName = authRepository.displayName
+        email = authRepository.email
+    }
+
     fun signInWithGoogle(context: Context) {
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
             authRepository.signInWithGoogle(context)
-                .onSuccess {
-                    isSignedInWithGoogle = true
-                    displayName = authRepository.displayName
-                    email = authRepository.email
-                }
+                .onSuccess { refreshState() }
+                .onFailure { errorMessage = it.message }
+            isLoading = false
+        }
+    }
+
+    fun registerWithEmail(email: String, password: String) {
+        viewModelScope.launch {
+            isLoading = true
+            errorMessage = null
+            authRepository.registerWithEmail(email, password)
+                .onSuccess { refreshState() }
+                .onFailure { errorMessage = it.message }
+            isLoading = false
+        }
+    }
+
+    fun signInWithEmail(email: String, password: String) {
+        viewModelScope.launch {
+            isLoading = true
+            errorMessage = null
+            authRepository.signInWithEmail(email, password)
+                .onSuccess { refreshState() }
                 .onFailure { errorMessage = it.message }
             isLoading = false
         }
@@ -45,6 +72,7 @@ class AuthViewModel @Inject constructor(
     fun signOut() {
         viewModelScope.launch {
             authRepository.signOut()
+            isSignedIn = false
             isSignedInWithGoogle = false
             displayName = null
             email = null

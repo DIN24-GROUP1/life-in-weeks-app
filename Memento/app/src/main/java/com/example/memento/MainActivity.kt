@@ -16,7 +16,6 @@ import com.example.memento.ui.components.BottomNavBar
 import com.example.memento.ui.theme.MementoTheme
 
 import com.example.memento.utils.routeToIndex
-import com.example.memento.view.StartScreen
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.HiltAndroidApp
 import com.google.firebase.auth.FirebaseAuth
@@ -47,20 +46,23 @@ class MainActivity : ComponentActivity() {
                     .collectAsState(initial = navController.currentBackStackEntry)
                     .value?.destination?.route
 
+                val showBottomBar = currentRoute != LoginRoute::class.qualifiedName
                 var selectedIndex = routeToIndex(currentRoute)
                 Scaffold(
                     bottomBar = {
-                        BottomNavBar(
-                            selectedIndex = selectedIndex,
-                            onItemSelected = { index ->
-                                selectedIndex = index
-                                when (index) {
-                                    0 -> navController.navigate(LifeGridRoute)
-                                    1 -> navController.navigate(StatsRoute)
-                                    2 -> navController.navigate(SettingsRoute)
+                        if (showBottomBar) {
+                            BottomNavBar(
+                                selectedIndex = selectedIndex,
+                                onItemSelected = { index ->
+                                    selectedIndex = index
+                                    when (index) {
+                                        0 -> navController.navigate(LifeGridRoute)
+                                        1 -> navController.navigate(StatsRoute)
+                                        2 -> navController.navigate(SettingsRoute)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 ) { innerPadding ->
                     MementoNavHost(
