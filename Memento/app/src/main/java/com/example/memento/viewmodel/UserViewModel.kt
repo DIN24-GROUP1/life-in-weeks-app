@@ -1,5 +1,6 @@
 package com.example.memento.viewmodel
 
+import android.content.Context
 import android.icu.text.SimpleDateFormat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -15,7 +16,9 @@ import com.example.memento.model.calculateLifeExpectancy
 import com.example.memento.repository.LifePhaseRepository
 import com.example.memento.repository.UserProfile
 import com.example.memento.repository.UserProfileRepository
+import com.example.memento.ui.theme.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -27,10 +30,24 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UserViewModel @Inject constructor(
+    @ApplicationContext context: Context,
     private val dateFormatter: SimpleDateFormat,
     private val profileRepository: UserProfileRepository,
     private val phaseRepository: LifePhaseRepository,
 ) : ViewModel() {
+
+    private val prefs = context.getSharedPreferences("memento_prefs", Context.MODE_PRIVATE)
+
+    var themeMode by mutableStateOf(
+        ThemeMode.entries.find { it.name == prefs.getString("theme_mode", ThemeMode.System.name) }
+            ?: ThemeMode.System
+    )
+        private set
+
+    fun updateThemeMode(mode: ThemeMode) {
+        themeMode = mode
+        prefs.edit().putString("theme_mode", mode.name).apply()
+    }
 
     var birthdayText by mutableStateOf("")
         private set

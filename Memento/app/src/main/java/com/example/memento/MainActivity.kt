@@ -5,15 +5,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.example.memento.ui.components.BottomNavBar
 import com.example.memento.ui.theme.MementoTheme
+import com.example.memento.viewmodel.UserViewModel
 
 import com.example.memento.utils.routeToIndex
 import dagger.hilt.android.AndroidEntryPoint
@@ -27,6 +27,8 @@ class MementoApp: Application()
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val userViewModel: UserViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val auth = FirebaseAuth.getInstance()
@@ -39,7 +41,7 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         setContent {
-            MementoTheme {
+            MementoTheme(themeMode = userViewModel.themeMode) {
                 val navController = rememberNavController()
 
                 val currentRoute = navController.currentBackStackEntryFlow
