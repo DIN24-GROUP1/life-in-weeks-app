@@ -8,9 +8,12 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,14 +26,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,9 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.collectAsState
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.memento.model.LifePhase
+import com.example.memento.viewmodel.TagViewModel
 import com.example.memento.viewmodel.UserViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -81,7 +86,8 @@ private val HorizontalPadding = 16.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LifeGridScreen(
-    viewModel: UserViewModel = hiltViewModel()
+    viewModel: UserViewModel = hiltViewModel(),
+    tagViewModel: TagViewModel = hiltViewModel()
 ) {
 
     val today = remember { LocalDate.now() }
@@ -106,6 +112,7 @@ fun LifeGridScreen(
 
     val phases by viewModel.phases.collectAsState()
     val birthday = viewModel.user.birthday
+    val taggedWeeks by tagViewModel.weeksWithTags.collectAsState()
 
     // Precompute weekIdx → colorArgb map — O(1) lookup per cell during draw
     val phaseColorMap: Map<Int, Int> = remember(phases, birthday) {
@@ -177,6 +184,7 @@ fun LifeGridScreen(
                             cellSize = cellSize,
                             selectedWeek = selectedWeek,
                             phaseColorMap = activePhaseMap,
+                            taggedWeekIndices = taggedWeeks,
                             onWeekSelected = { week -> selectedWeek = Pair(year, week) }
                         )
                         Spacer(Modifier.height(CellGap))
@@ -199,6 +207,7 @@ fun LifeGridScreen(
                     week = week,
                     birthday = birthday ?: LocalDate.now(),
                     currentWeekIdx = currentWeekIdx,
+                    tagViewModel = tagViewModel,
                 )
             }
         }
@@ -267,6 +276,7 @@ private fun YearRow(
     cellSize: Dp,
     selectedWeek: Pair<Int, Int>?,
     phaseColorMap: Map<Int, Int>,
+    taggedWeekIndices: Set<Int>,
     onWeekSelected: (week: Int) -> Unit
 ) {
     val density = LocalDensity.current
@@ -374,6 +384,16 @@ private fun YearRow(
                         )
                     }
                 }
+
+                // Tag dot indicator
+                if (weekIdx in taggedWeekIndices) {
+                    val dotR = cellSizePx * 0.15f
+                    drawCircle(
+                        color = ColorAccentSoft,
+                        radius = dotR,
+                        center = Offset(x + cellSizePx - dotR - 1.dp.toPx(), dotR + 1.dp.toPx())
+                    )
+                }
             }
         }
     }
@@ -381,12 +401,14 @@ private fun YearRow(
 
 // ── Week detail bottom sheet ────────────────────────────────────────────────
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WeekDetailContent(
     year: Int,
     week: Int,
     birthday: LocalDate,
     currentWeekIdx: Int,
+    tagViewModel: TagViewModel,
 ) {
     val weekIdx = year * 52 + week
     val weekStart = remember(birthday, weekIdx) { birthday.plusDays(weekIdx * 7L) }
@@ -400,6 +422,9 @@ private fun WeekDetailContent(
 
     // Local note state — will be replaced with Room-backed state later
     var noteText by remember { mutableStateOf("") }
+    var showTagPicker by remember { mutableStateOf(false) }
+
+    val tags by tagViewModel.tagsForWeek(weekIdx).collectAsState(initial = emptyList())
 
     Column(
         modifier = Modifier
@@ -473,7 +498,171 @@ private fun WeekDetailContent(
             ),
             maxLines = 8,
         )
+
+        Spacer(Modifier.height(24.dp))
+
+        // Tags section
+        Text(
+            text = "TAGS",
+            color = ColorMuted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.sp,
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            tags.forEach { tag ->
+                TagChip(tag = tag, onRemove = { tagViewModel.removeTag(weekIdx, tag) })
+            }
+            Box(
+                modifier = Modifier
+                    .background(Color.Transparent, RoundedCornerShape(50))
+                    .border(1.dp, ColorBorder, RoundedCornerShape(50))
+                    .clickable { showTagPicker = true }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text("+ Add tag", color = ColorAccentSoft, fontSize = 13.sp)
+            }
+        }
     }
+
+    if (showTagPicker) {
+        TagPickerDialog(
+            weekIdx = weekIdx,
+            activeTags = tags,
+            tagViewModel = tagViewModel,
+            onDismiss = { showTagPicker = false },
+        )
+    }
+}
+
+@Composable
+private fun TagChip(tag: String, onRemove: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .background(ColorAccent.copy(alpha = 0.18f), RoundedCornerShape(50))
+            .border(1.dp, ColorAccent.copy(alpha = 0.5f), RoundedCornerShape(50))
+            .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(tag, color = ColorAccentSoft, fontSize = 13.sp)
+        Box(
+            modifier = Modifier
+                .clickable(onClick = onRemove)
+                .padding(horizontal = 4.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("×", color = ColorAccentSoft, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TagPickerDialog(
+    weekIdx: Int,
+    activeTags: List<String>,
+    tagViewModel: TagViewModel,
+    onDismiss: () -> Unit,
+) {
+    val allUsedTagNames by tagViewModel.allUsedTagNames.collectAsState()
+    val allTags = remember(allUsedTagNames) {
+        (tagViewModel.PREDEFINED_TAGS + allUsedTagNames).distinct()
+    }
+    var customTagInput by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = ColorSurface,
+        titleContentColor = ColorText,
+        title = { Text("Add Tags", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    allTags.forEach { tag ->
+                        val isActive = tag in activeTags
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (isActive) ColorAccent else ColorSurface2,
+                                    RoundedCornerShape(50)
+                                )
+                                .border(
+                                    1.dp,
+                                    if (isActive) ColorAccent else ColorBorder,
+                                    RoundedCornerShape(50)
+                                )
+                                .clickable {
+                                    if (isActive) tagViewModel.removeTag(weekIdx, tag)
+                                    else tagViewModel.addTag(weekIdx, tag)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = tag,
+                                color = if (isActive) Color.White else ColorAccentSoft,
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = customTagInput,
+                        onValueChange = { customTagInput = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Custom tag…", color = ColorMuted, fontSize = 13.sp) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ColorAccent,
+                            unfocusedBorderColor = ColorBorder,
+                            focusedTextColor = ColorText,
+                            unfocusedTextColor = ColorText,
+                            cursorColor = ColorAccentSoft,
+                            focusedContainerColor = ColorSurface2,
+                            unfocusedContainerColor = ColorSurface2,
+                        ),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .background(ColorAccent, RoundedCornerShape(10.dp))
+                            .clickable {
+                                val trimmed = customTagInput.trim()
+                                if (trimmed.isNotEmpty()) {
+                                    tagViewModel.addTag(weekIdx, trimmed)
+                                    customTagInput = ""
+                                }
+                            }
+                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("Add", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done", color = ColorAccentSoft, fontWeight = FontWeight.SemiBold)
+            }
+        },
+    )
 }
 
 @Composable

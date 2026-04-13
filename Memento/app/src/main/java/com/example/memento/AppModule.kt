@@ -5,6 +5,7 @@ import android.icu.text.SimpleDateFormat
 import androidx.room.Room
 import com.example.memento.db.AppDatabase
 import com.example.memento.db.LifePhaseDao
+import com.example.memento.db.WeekTagDao
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -33,10 +34,15 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext ctx: Context): AppDatabase =
-        Room.databaseBuilder(ctx, AppDatabase::class.java, "memento.db").build()
+        Room.databaseBuilder(ctx, AppDatabase::class.java, "memento.db")
+            .fallbackToDestructiveMigration()
+            .build()
 
     @Provides
     fun providePhaseDao(db: AppDatabase): LifePhaseDao = db.phaseDao()
+
+    @Provides
+    fun provideWeekTagDao(db: AppDatabase): WeekTagDao = db.weekTagDao()
 }
 
 @Module
