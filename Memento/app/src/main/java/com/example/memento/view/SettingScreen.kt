@@ -48,12 +48,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import com.example.memento.model.LifePhase
 import com.example.memento.model.PhaseColorPresets
+import com.example.memento.viewmodel.AuthViewModel
 import com.example.memento.viewmodel.UserViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -72,7 +74,7 @@ private val SAccentSoft = Color(0xFFA78BFA)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingScreen(viewModel: UserViewModel) {
+fun SettingScreen(viewModel: UserViewModel, authViewModel: AuthViewModel) {
     val phases by viewModel.phases.collectAsState()
 
     var showAddForm by remember { mutableStateOf(false) }
@@ -94,11 +96,18 @@ fun SettingScreen(viewModel: UserViewModel) {
 
     val dateFmt = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
 
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(SBg)
     ) {
+        // Account section
+        AccountSection(authViewModel = authViewModel, onSignIn = { authViewModel.signInWithGoogle(context) })
+
+        HorizontalDivider(color = SBorder, thickness = 1.dp)
+
         // Section header
         Row(
             modifier = Modifier
@@ -384,6 +393,68 @@ fun SettingScreen(viewModel: UserViewModel) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AccountSection(authViewModel: AuthViewModel, onSignIn: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SSurface)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+        Text(
+            text = "ACCOUNT",
+            color = SMuted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.sp,
+        )
+        Spacer(Modifier.height(12.dp))
+
+        if (authViewModel.isSignedInWithGoogle) {
+            authViewModel.displayName?.let {
+                Text(text = it, color = SText, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            }
+            authViewModel.email?.let {
+                Text(text = it, color = SMuted, fontSize = 13.sp)
+            }
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = { authViewModel.signOut() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = SSurface2),
+            ) {
+                Text("Sign out", color = SText, fontWeight = FontWeight.SemiBold)
+            }
+        } else {
+            Text(
+                text = "Using anonymously — sign in with Google to sync your data across devices.",
+                color = SMuted,
+                fontSize = 13.sp,
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onSignIn,
+                enabled = !authViewModel.isLoading,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = SAccent),
+            ) {
+                Text(
+                    text = if (authViewModel.isLoading) "Signing in…" else "Sign in with Google",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        authViewModel.errorMessage?.let { msg ->
+            Spacer(Modifier.height(8.dp))
+            Text(text = msg, color = Color(0xFFEF4444), fontSize = 12.sp)
         }
     }
 }
