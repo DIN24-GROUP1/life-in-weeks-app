@@ -53,7 +53,7 @@ fun MementoNavHost(
         }
 
         composable<StatsRoute> {
-            StatScreen()
+            StatScreen(userVm)
         }
     }
 }
