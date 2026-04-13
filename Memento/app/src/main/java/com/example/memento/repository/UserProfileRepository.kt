@@ -10,6 +10,8 @@ import javax.inject.Singleton
 data class UserProfile(
     val birthday: String = "",
     val lifeExpectancyYears: Int = 90,
+    val genderSliderPosition: Float = 0f,
+    val country: String = "",
 )
 
 @Singleton
@@ -34,6 +36,8 @@ class UserProfileRepository @Inject constructor(
         UserProfile(
             birthday = snapshot.getString("birthday") ?: "",
             lifeExpectancyYears = (snapshot.getLong("lifeExpectancyYears") ?: 90L).toInt(),
+            genderSliderPosition = (snapshot.getDouble("genderSliderPosition") ?: 0.0).toFloat(),
+            country = snapshot.getString("country") ?: "",
         )
     }.onFailure { Log.w("UserProfileRepository", "Failed to load profile", it) }.getOrNull()
 
@@ -42,6 +46,8 @@ class UserProfileRepository @Inject constructor(
             mapOf(
                 "birthday" to profile.birthday,
                 "lifeExpectancyYears" to profile.lifeExpectancyYears,
+                "genderSliderPosition" to profile.genderSliderPosition,
+                "country" to profile.country,
             )
         ).await()
     }.onFailure { Log.w("UserProfileRepository", "Failed to save profile", it) }

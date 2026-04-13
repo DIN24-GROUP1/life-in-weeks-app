@@ -34,6 +34,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -58,8 +61,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
+import com.example.memento.model.CountryData
 import com.example.memento.model.LifePhase
 import com.example.memento.model.PhaseColorPresets
+import com.example.memento.model.allCountries
 import com.example.memento.viewmodel.AuthViewModel
 import com.example.memento.viewmodel.UserViewModel
 import java.time.Instant
@@ -411,6 +416,8 @@ fun SettingScreen(viewModel: UserViewModel, authViewModel: AuthViewModel) {
 @Composable
 private fun ProfileSection(viewModel: UserViewModel) {
     var showDatePicker by remember { mutableStateOf(false) }
+    var showCountryPicker by remember { mutableStateOf(false) }
+    var countrySearch by remember { mutableStateOf("") }
     val datePickerState = rememberDatePickerState()
 
     Column(
@@ -492,6 +499,54 @@ private fun ProfileSection(viewModel: UserViewModel) {
 
         Spacer(Modifier.height(12.dp))
 
+        // Gender slider
+        Text(text = "Gender", color = SMuted, fontSize = 12.sp)
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text("Male", fontSize = 12.sp, color = SMuted)
+            Spacer(Modifier.width(8.dp))
+            Slider(
+                value = viewModel.genderSliderPosition,
+                onValueChange = { viewModel.updateGenderSlider(it) },
+                valueRange = 0f..9f,
+                steps = 8,
+                modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = SAccentSoft,
+                    activeTrackColor = SAccent,
+                    inactiveTrackColor = SMuted.copy(alpha = 0.3f),
+                )
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("Female", fontSize = 12.sp, color = SMuted)
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Country selector
+        OutlinedTextField(
+            value = viewModel.selectedCountry?.name ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Country of Origin", color = SMuted) },
+            placeholder = { Text("Select a country", color = SMuted) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showCountryPicker = true },
+            enabled = false,
+            shape = RoundedCornerShape(10.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = SText,
+                disabledBorderColor = SBorder,
+                disabledLabelColor = SMuted,
+                disabledPlaceholderColor = SMuted,
+                disabledContainerColor = SSurface,
+            ),
+        )
+
+        Spacer(Modifier.height(12.dp))
+
         // Life expectancy field
         OutlinedTextField(
             value = viewModel.lifeExpectancyText,
@@ -500,6 +555,9 @@ private fun ProfileSection(viewModel: UserViewModel) {
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             placeholder = { Text("90", color = SMuted) },
+            supportingText = if (viewModel.selectedCountry != null) {
+                { Text("Auto-calculated from country & gender", color = SAccentSoft, fontSize = 11.sp) }
+            } else null,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -513,6 +571,75 @@ private fun ProfileSection(viewModel: UserViewModel) {
             ),
         )
     }
+
+    if (showCountryPicker) {
+        SettingsCountryPickerDialog(
+            search = countrySearch,
+            onSearchChange = { countrySearch = it },
+            onSelect = { country ->
+                viewModel.updateCountry(country)
+                showCountryPicker = false
+                countrySearch = ""
+            },
+            onDismiss = {
+                showCountryPicker = false
+                countrySearch = ""
+            }
+        )
+    }
+}
+
+@Composable
+private fun SettingsCountryPickerDialog(
+    search: String,
+    onSearchChange: (String) -> Unit,
+    onSelect: (CountryData) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val filtered = remember(search) {
+        if (search.isBlank()) allCountries
+        else allCountries.filter { it.name.contains(search, ignoreCase = true) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select Country") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = search,
+                    onValueChange = onSearchChange,
+                    placeholder = { Text("Search…") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(modifier = Modifier.height(320.dp)) {
+                    items(filtered) { country ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(country) }
+                                .padding(horizontal = 4.dp, vertical = 10.dp)
+                        ) {
+                            Text(country.name, fontSize = 14.sp, color = SText)
+                            Text(
+                                "♂ ${country.maleLE}y  ♀ ${country.femaleLE}y",
+                                fontSize = 11.sp,
+                                color = SMuted,
+                            )
+                        }
+                        HorizontalDivider(color = SBorder)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        containerColor = SSurface,
+        titleContentColor = SText,
+    )
 }
 
 @Composable
