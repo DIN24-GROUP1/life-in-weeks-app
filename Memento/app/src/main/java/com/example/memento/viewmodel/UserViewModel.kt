@@ -57,6 +57,7 @@ class UserViewModel @Inject constructor(
                 selectedCountry = allCountries.find { it.name == profile.country }
             }
             isProfileLoaded = true
+            birthday?.let { phaseRepository.seedDefaultPhasesIfEmpty(it) }
         }
     }
 
@@ -77,6 +78,9 @@ class UserViewModel @Inject constructor(
     fun convertMillisToDate(millis: Long) {
         birthdayText = dateFormatter.format(Date(millis))
         saveProfile()
+        viewModelScope.launch {
+            birthday?.let { phaseRepository.seedDefaultPhasesIfEmpty(it) }
+        }
     }
 
     fun updateLifeExpectancy(input: String) {

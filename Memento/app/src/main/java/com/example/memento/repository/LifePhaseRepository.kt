@@ -3,10 +3,12 @@ package com.example.memento.repository
 import android.util.Log
 import com.example.memento.db.LifePhaseDao
 import com.example.memento.model.LifePhase
+import com.example.memento.model.defaultLifePhases
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -49,6 +51,17 @@ class LifePhaseRepository @Inject constructor(
     private suspend fun syncToFirestore(phase: LifePhase) = runCatching {
         phasesRef().document(phase.id.toString()).set(phase.toMap()).await()
     }.onFailure { Log.w("LifePhaseRepository", "Failed to sync phase ${phase.id} to Firestore", it) }
+
+    /** Inserts the 5 default life phases if the user has no phases yet. */
+    suspend fun seedDefaultPhasesIfEmpty(birthday: LocalDate) {
+        if (dao.count() > 0) return
+        defaultLifePhases.forEach { phase ->
+            val start = birthday.plusYears(phase.startYear.toLong()).toEpochDay()
+            val end   = birthday.plusYears(phase.endYear.toLong()).minusDays(1).toEpochDay()
+            addPhase(LifePhase(name = phase.name, colorArgb = phase.colorArgb,
+                               startEpochDay = start, endEpochDay = end))
+        }
+    }
 
     private fun LifePhase.toMap() = mapOf(
         "name" to name,

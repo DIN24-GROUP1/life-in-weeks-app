@@ -13,6 +13,9 @@ interface LifePhaseDao {
     @Query("SELECT * FROM phases ORDER BY startEpochDay ASC")
     fun getAll(): Flow<List<LifePhase>>
 
+    @Query("SELECT COUNT(*) FROM phases")
+    suspend fun count(): Int
+
     @Insert suspend fun insert(phase: LifePhase): Long
     @Update suspend fun update(phase: LifePhase)
     @Delete suspend fun delete(phase: LifePhase)

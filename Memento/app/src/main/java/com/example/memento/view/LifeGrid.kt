@@ -99,7 +99,7 @@ fun LifeGridScreen(
 
     var scale by remember { mutableFloatStateOf(1f) }
     var selectedWeek by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    var phasesEnabled by remember { mutableStateOf(false) }
+    var phasesEnabled by remember { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
     val horizontalScrollState = rememberScrollState()
@@ -148,15 +148,15 @@ fun LifeGridScreen(
         val cellSize = baseCellSize * scale
         val contentWidth = HorizontalPadding * 2 + YearLabelWidth + YearLabelGap + cellSize * 52 + CellGap * 51
 
-        val activePhaseMap = if (phasesEnabled) phaseColorMap else emptyMap()
+        val activePhaseMap: Map<Int, Int> = if (phasesEnabled) phaseColorMap else emptyMap()
 
         Column(modifier = Modifier.fillMaxSize()) {
             GridHeader(currentWeekIdx, weeksRemaining)
 
-            // Toolbar: phases toggle
+            // Toolbar: phase toggle
             PhasesToolbar(
                 phasesEnabled = phasesEnabled,
-                onToggle = { phasesEnabled = !phasesEnabled }
+                onToggle = { phasesEnabled = !phasesEnabled },
             )
 
             Box(
@@ -217,23 +217,32 @@ private fun PhasesToolbar(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .background(
-                    color = if (phasesEnabled) ColorAccent else Color.Transparent,
-                    shape = RoundedCornerShape(50)
-                )
-                .border(1.dp, ColorAccent, RoundedCornerShape(50))
-                .clickable(onClick = onToggle)
-                .padding(horizontal = 14.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = if (phasesEnabled) "◉  Phases" else "○  Phases",
-                color = if (phasesEnabled) Color.White else ColorAccentSoft,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
+        ToggleChip(
+            label = "Life Phases",
+            enabled = phasesEnabled,
+            onClick = onToggle,
+        )
+    }
+}
+
+@Composable
+private fun ToggleChip(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .background(
+                color = if (enabled) ColorAccent else Color.Transparent,
+                shape = RoundedCornerShape(50)
             )
-        }
+            .border(1.dp, ColorAccent, RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = if (enabled) "◉  $label" else "○  $label",
+            color = if (enabled) Color.White else ColorAccentSoft,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
