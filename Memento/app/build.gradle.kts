@@ -99,6 +99,9 @@ dependencies {
     implementation(libs.room.ktx)
     kapt(libs.room.compiler)
 
+    // Coroutines Play Services (Task.await() for Firebase)
+    implementation(libs.kotlinx.coroutines.play.services)
+
     // Google Sign-In (Credential Manager)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play)

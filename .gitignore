@@ -31,3 +31,5 @@ secrets.properties
 
 ### Claude Code ###
 .claude/
+google-services-old
+google-services-old-2

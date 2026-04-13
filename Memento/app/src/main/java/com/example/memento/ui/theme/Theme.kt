@@ -1,58 +1,69 @@
 package com.example.memento.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary              = BrandViolet,
+    onPrimary            = BrandLightSurface,
+    primaryContainer     = BrandVioletDeep,
+    onPrimaryContainer   = BrandLavender,
+    secondary            = BrandVioletLight,
+    onSecondary          = BrandDarkNavy,
+    secondaryContainer   = BrandVioletDeep,
+    onSecondaryContainer = BrandLavender,
+    background           = BrandDarkNavy,
+    onBackground         = BrandTextDark,
+    surface              = BrandNavySurface,
+    onSurface            = BrandTextDark,
+    surfaceVariant       = BrandNavySurface2,
+    onSurfaceVariant     = BrandMutedDark,
+    surfaceContainer     = BrandNavySurface,
+    outline              = BrandNavyBorder,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary              = BrandViolet,
+    onPrimary            = BrandLightSurface,
+    primaryContainer     = BrandLavender,
+    onPrimaryContainer   = BrandVioletDeep,
+    secondary            = BrandVioletDark,
+    onSecondary          = BrandLightSurface,
+    secondaryContainer   = BrandLavender,
+    onSecondaryContainer = BrandVioletDeep,
+    background           = BrandLightBg,
+    onBackground         = BrandTextLight,
+    surface              = BrandLightSurface,
+    onSurface            = BrandTextLight,
+    surfaceVariant       = BrandLightSurface2,
+    onSurfaceVariant     = BrandMutedLight,
+    surfaceContainer     = BrandLightContainer,
+    outline              = BrandLightBorder,
 )
 
 @Composable
 fun MementoTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    themeMode: ThemeMode = ThemeMode.System,
+    content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val darkTheme = when (themeMode) {
+        ThemeMode.Dark   -> true
+        ThemeMode.Light  -> false
+        ThemeMode.System -> isSystemInDarkTheme()
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    val appColors = if (darkTheme) darkAppColors() else lightAppColors()
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+
+    CompositionLocalProvider(LocalAppColors provides appColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content,
+        )
+    }
 }

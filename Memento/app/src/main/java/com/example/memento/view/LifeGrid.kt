@@ -58,25 +58,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.memento.model.LifePhase
+import com.example.memento.ui.theme.AppColors
+import com.example.memento.ui.theme.LocalAppColors
 import com.example.memento.viewmodel.TagViewModel
 import com.example.memento.viewmodel.UserViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-
-private val ColorPast = Color(0xFF3D3D60)
-private val ColorNow = Color(0xFF22C55E)
-private val ColorSelected = Color(0xFF7C3AED)
-private val ColorFuture = Color(0xFF181828)
-private val ColorFutureBorder = Color(0xFF222238)
-private val ColorMuted = Color(0xFF5A5A80)
-private val ColorSurface = Color(0xFF16162A)
-private val ColorSurface2 = Color(0xFF1E1E35)
-private val ColorBg = Color(0xFF0D0D1A)
-private val ColorText = Color(0xFFE8E8F5)
-private val ColorBorder = Color(0xFF2A2A48)
-private val ColorAccent = Color(0xFF7C3AED)
-private val ColorAccentSoft = Color(0xFFA78BFA)
 
 private val CellGap = 1.dp
 private val YearLabelWidth = 20.dp
@@ -87,16 +76,13 @@ private val HorizontalPadding = 16.dp
 @Composable
 fun LifeGridScreen(
     viewModel: UserViewModel = hiltViewModel(),
-    tagViewModel: TagViewModel = hiltViewModel()
+    tagViewModel: TagViewModel = hiltViewModel(),
 ) {
-
+    val c = LocalAppColors.current
     val today = remember { LocalDate.now() }
 
-    // Weeks are indexed flat from birth: weekIdx = year * 52 + weekOfYear
     val currentWeekIdx = remember(today) {
-        if (viewModel.user.birthday == null) {
-            return@remember -1
-        }
+        if (viewModel.user.birthday == null) return@remember -1
         val days = ChronoUnit.DAYS.between(viewModel.user.birthday, today)
         if (days < 0) -1 else (days / 7).toInt()
     }
@@ -105,7 +91,7 @@ fun LifeGridScreen(
 
     var scale by remember { mutableFloatStateOf(1f) }
     var selectedWeek by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    var phasesEnabled by remember { mutableStateOf(false) }
+    var phasesEnabled by remember { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
     val horizontalScrollState = rememberScrollState()
@@ -114,7 +100,6 @@ fun LifeGridScreen(
     val birthday = viewModel.user.birthday
     val taggedWeeks by tagViewModel.weeksWithTags.collectAsState()
 
-    // Precompute weekIdx → colorArgb map — O(1) lookup per cell during draw
     val phaseColorMap: Map<Int, Int> = remember(phases, birthday) {
         val bd = birthday ?: return@remember emptyMap()
         buildMap {
@@ -135,7 +120,7 @@ fun LifeGridScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(ColorBg)
+            .background(c.bg)
             .pointerInput(Unit) {
                 awaitEachGesture {
                     var event = awaitPointerEvent(PointerEventPass.Initial)
@@ -155,16 +140,12 @@ fun LifeGridScreen(
         val cellSize = baseCellSize * scale
         val contentWidth = HorizontalPadding * 2 + YearLabelWidth + YearLabelGap + cellSize * 52 + CellGap * 51
 
-        val activePhaseMap = if (phasesEnabled) phaseColorMap else emptyMap()
+        val activePhaseMap: Map<Int, Int> = if (phasesEnabled) phaseColorMap else emptyMap()
 
         Column(modifier = Modifier.fillMaxSize()) {
             GridHeader(currentWeekIdx, weeksRemaining)
 
-            // Toolbar: phases toggle
-            PhasesToolbar(
-                phasesEnabled = phasesEnabled,
-                onToggle = { phasesEnabled = !phasesEnabled }
-            )
+            PhasesToolbar(phasesEnabled = phasesEnabled, onToggle = { phasesEnabled = !phasesEnabled })
 
             Box(
                 modifier = Modifier
@@ -185,6 +166,7 @@ fun LifeGridScreen(
                             selectedWeek = selectedWeek,
                             phaseColorMap = activePhaseMap,
                             taggedWeekIndices = taggedWeeks,
+                            appColors = c,
                             onWeekSelected = { week -> selectedWeek = Pair(year, week) }
                         )
                         Spacer(Modifier.height(CellGap))
@@ -193,13 +175,12 @@ fun LifeGridScreen(
             }
         }
 
-        // Week detail bottom sheet
         selectedWeek?.let { (year, week) ->
             ModalBottomSheet(
                 onDismissRequest = { selectedWeek = null },
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = ColorSurface,
-                contentColor = ColorText,
+                containerColor = c.surface,
+                contentColor = c.text,
                 scrimColor = Color(0x8C000000),
             ) {
                 WeekDetailContent(
@@ -215,57 +196,53 @@ fun LifeGridScreen(
 }
 
 @Composable
-private fun PhasesToolbar(
-    phasesEnabled: Boolean,
-    onToggle: () -> Unit,
-) {
+private fun PhasesToolbar(phasesEnabled: Boolean, onToggle: () -> Unit) {
+    val c = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ColorSurface)
+            .background(c.surface)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .background(
-                    color = if (phasesEnabled) ColorAccent else Color.Transparent,
-                    shape = RoundedCornerShape(50)
-                )
-                .border(1.dp, ColorAccent, RoundedCornerShape(50))
-                .clickable(onClick = onToggle)
-                .padding(horizontal = 14.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = if (phasesEnabled) "◉  Phases" else "○  Phases",
-                color = if (phasesEnabled) Color.White else ColorAccentSoft,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
+        ToggleChip(label = "Life Phases", enabled = phasesEnabled, onClick = onToggle)
+    }
+}
+
+@Composable
+private fun ToggleChip(label: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .background(
+                color = if (enabled) c.accent else Color.Transparent,
+                shape = RoundedCornerShape(50)
             )
-        }
+            .border(1.dp, c.accent, RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = if (enabled) "◉  $label" else "○  $label",
+            color = if (enabled) Color.White else c.accentSoft,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
 @Composable
 private fun GridHeader(currentWeekIdx: Int, weeksRemaining: Int) {
+    val c = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(ColorSurface)
-            .border(width = 1.dp, color = ColorBorder)
+            .background(c.surface)
+            .border(width = 1.dp, color = c.border)
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        Text(
-            text = "Life in Weeks",
-            color = ColorText,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-        Text(
-            text = "Week $currentWeekIdx · $weeksRemaining weeks remaining",
-            color = ColorMuted,
-            fontSize = 12.sp
-        )
+        Text(text = "Life in Weeks", color = c.text, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+        Text(text = "Week $currentWeekIdx · $weeksRemaining weeks remaining", color = c.muted, fontSize = 12.sp)
     }
 }
 
@@ -277,7 +254,8 @@ private fun YearRow(
     selectedWeek: Pair<Int, Int>?,
     phaseColorMap: Map<Int, Int>,
     taggedWeekIndices: Set<Int>,
-    onWeekSelected: (week: Int) -> Unit
+    appColors: AppColors,
+    onWeekSelected: (week: Int) -> Unit,
 ) {
     val density = LocalDensity.current
     val cellSizePx = remember(cellSize, density) { with(density) { cellSize.toPx() } }
@@ -286,7 +264,6 @@ private fun YearRow(
     val borderStrokePx = remember(density) { with(density) { 0.5.dp.toPx() } }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        // Year label — zero layout height so it never inflates the row
         Box(
             modifier = Modifier
                 .width(YearLabelWidth)
@@ -294,20 +271,17 @@ private fun YearRow(
                     val placeable = measurable.measure(
                         constraints.copy(minHeight = 0, maxHeight = Int.MAX_VALUE)
                     )
-                    layout(placeable.width, 0) {
-                        placeable.place(0, -placeable.height / 2)
-                    }
+                    layout(placeable.width, 0) { placeable.place(0, -placeable.height / 2) }
                 },
             contentAlignment = Alignment.CenterEnd
         ) {
             if (year % 5 == 0) {
-                Text(text = "$year", color = ColorMuted, fontSize = 6.sp)
+                Text(text = "$year", color = appColors.muted, fontSize = 6.sp)
             }
         }
 
         Spacer(Modifier.width(YearLabelGap))
 
-        // All 52 cells drawn in a single Canvas pass — no per-cell composables
         Canvas(
             modifier = Modifier
                 .width(cellSize * 52 + CellGap * 51)
@@ -329,59 +303,19 @@ private fun YearRow(
                 val phaseColor = phaseColorMap[weekIdx]
 
                 when {
-                    isSelected -> drawRoundRect(
-                        color = ColorSelected,
-                        topLeft = topLeft,
-                        size = cellRect,
-                        cornerRadius = cr
-                    )
-                    weekIdx == currentWeekIdx -> drawRoundRect(
-                        color = ColorNow,
-                        topLeft = topLeft,
-                        size = cellRect,
-                        cornerRadius = cr
-                    )
+                    isSelected -> drawRoundRect(color = appColors.accent, topLeft = topLeft, size = cellRect, cornerRadius = cr)
+                    weekIdx == currentWeekIdx -> drawRoundRect(color = appColors.green, topLeft = topLeft, size = cellRect, cornerRadius = cr)
                     phaseColor != null && weekIdx < currentWeekIdx -> drawRoundRect(
-                        color = Color(phaseColor).copy(alpha = 0.85f),
-                        topLeft = topLeft,
-                        size = cellRect,
-                        cornerRadius = cr
+                        color = Color(phaseColor).copy(alpha = 0.85f), topLeft = topLeft, size = cellRect, cornerRadius = cr
                     )
                     phaseColor != null -> {
-                        drawRoundRect(
-                            color = Color(phaseColor).copy(alpha = 0.35f),
-                            topLeft = topLeft,
-                            size = cellRect,
-                            cornerRadius = cr
-                        )
-                        drawRoundRect(
-                            color = Color(phaseColor).copy(alpha = 0.6f),
-                            topLeft = topLeft,
-                            size = cellRect,
-                            cornerRadius = cr,
-                            style = Stroke(width = borderStrokePx)
-                        )
+                        drawRoundRect(color = Color(phaseColor).copy(alpha = 0.35f), topLeft = topLeft, size = cellRect, cornerRadius = cr)
+                        drawRoundRect(color = Color(phaseColor).copy(alpha = 0.6f), topLeft = topLeft, size = cellRect, cornerRadius = cr, style = Stroke(width = borderStrokePx))
                     }
-                    weekIdx < currentWeekIdx -> drawRoundRect(
-                        color = ColorPast,
-                        topLeft = topLeft,
-                        size = cellRect,
-                        cornerRadius = cr
-                    )
+                    weekIdx < currentWeekIdx -> drawRoundRect(color = appColors.past, topLeft = topLeft, size = cellRect, cornerRadius = cr)
                     else -> {
-                        drawRoundRect(
-                            color = ColorFuture,
-                            topLeft = topLeft,
-                            size = cellRect,
-                            cornerRadius = cr
-                        )
-                        drawRoundRect(
-                            color = ColorFutureBorder,
-                            topLeft = topLeft,
-                            size = cellRect,
-                            cornerRadius = cr,
-                            style = Stroke(width = borderStrokePx)
-                        )
+                        drawRoundRect(color = appColors.future, topLeft = topLeft, size = cellRect, cornerRadius = cr)
+                        drawRoundRect(color = appColors.futureBorder, topLeft = topLeft, size = cellRect, cornerRadius = cr, style = Stroke(width = borderStrokePx))
                     }
                 }
 
@@ -389,7 +323,7 @@ private fun YearRow(
                 if (weekIdx in taggedWeekIndices) {
                     val dotR = cellSizePx * 0.15f
                     drawCircle(
-                        color = ColorAccentSoft,
+                        color = appColors.accentSoft,
                         radius = dotR,
                         center = Offset(x + cellSizePx - dotR - 1.dp.toPx(), dotR + 1.dp.toPx())
                     )
@@ -410,6 +344,7 @@ private fun WeekDetailContent(
     currentWeekIdx: Int,
     tagViewModel: TagViewModel,
 ) {
+    val c = LocalAppColors.current
     val weekIdx = year * 52 + week
     val weekStart = remember(birthday, weekIdx) { birthday.plusDays(weekIdx * 7L) }
     val weekEnd = remember(weekStart) { weekStart.plusDays(6) }
@@ -420,7 +355,6 @@ private fun WeekDetailContent(
         "${weekStart.format(shortFmt)} – ${weekEnd.format(longFmt)}"
     }
 
-    // Local note state — will be replaced with Room-backed state later
     var noteText by remember { mutableStateOf("") }
     var showTagPicker by remember { mutableStateOf(false) }
 
@@ -432,15 +366,13 @@ private fun WeekDetailContent(
             .padding(horizontal = 20.dp)
             .padding(bottom = 32.dp)
     ) {
-        // Badge
         WeekBadge(weekIdx = weekIdx, currentWeekIdx = currentWeekIdx)
 
         Spacer(Modifier.height(10.dp))
 
-        // Title
         Text(
             text = "Year $year · Week ${week + 1}",
-            color = ColorText,
+            color = c.text,
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = (-0.4).sp,
@@ -448,24 +380,14 @@ private fun WeekDetailContent(
 
         Spacer(Modifier.height(4.dp))
 
-        // Date range + age
-        Text(
-            text = dateRange,
-            color = ColorMuted,
-            fontSize = 12.sp,
-        )
-        Text(
-            text = "Age $year",
-            color = ColorMuted,
-            fontSize = 12.sp,
-        )
+        Text(text = dateRange, color = c.muted, fontSize = 12.sp)
+        Text(text = "Age $year", color = c.muted, fontSize = 12.sp)
 
         Spacer(Modifier.height(24.dp))
 
-        // Note field
         Text(
             text = "NOTE",
-            color = ColorMuted,
+            color = c.muted,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 1.sp,
@@ -479,22 +401,16 @@ private fun WeekDetailContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 100.dp),
-            placeholder = {
-                Text(
-                    text = "What happened this week?",
-                    color = ColorMuted,
-                    fontSize = 14.sp,
-                )
-            },
+            placeholder = { Text("What happened this week?", color = c.muted, fontSize = 14.sp) },
             shape = RoundedCornerShape(13.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ColorAccent,
-                unfocusedBorderColor = ColorBorder,
-                focusedTextColor = ColorText,
-                unfocusedTextColor = ColorText,
-                cursorColor = ColorAccentSoft,
-                focusedContainerColor = ColorSurface2,
-                unfocusedContainerColor = ColorSurface2,
+                focusedBorderColor = c.accent,
+                unfocusedBorderColor = c.border,
+                focusedTextColor = c.text,
+                unfocusedTextColor = c.text,
+                cursorColor = c.accentSoft,
+                focusedContainerColor = c.surface2,
+                unfocusedContainerColor = c.surface2,
             ),
             maxLines = 8,
         )
@@ -667,22 +583,17 @@ private fun TagPickerDialog(
 
 @Composable
 private fun WeekBadge(weekIdx: Int, currentWeekIdx: Int) {
+    val c = LocalAppColors.current
     val (label, textColor, bgColor) = when {
-        weekIdx == currentWeekIdx -> Triple("NOW", ColorNow, Color(0x2622C55E))
-        weekIdx < currentWeekIdx -> Triple("PAST", ColorMuted, Color(0x335A5A80))
-        else -> Triple("FUTURE", ColorAccentSoft, Color(0x267C3AED))
+        weekIdx == currentWeekIdx -> Triple("NOW",    c.green,      c.green.copy(alpha = 0.15f))
+        weekIdx < currentWeekIdx  -> Triple("PAST",   c.muted,      c.muted.copy(alpha = 0.20f))
+        else                      -> Triple("FUTURE", c.accentSoft, c.accent.copy(alpha = 0.15f))
     }
     Box(
         modifier = Modifier
             .background(bgColor, RoundedCornerShape(6.dp))
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
-        Text(
-            text = label,
-            color = textColor,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp,
-        )
+        Text(text = label, color = textColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
     }
 }
