@@ -4,12 +4,13 @@ import android.icu.text.SimpleDateFormat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.memento.db.LifePhaseDao
 import com.example.memento.model.LifePhase
 import com.example.memento.model.UserModel
+import com.example.memento.repository.LifePhaseRepository
+import com.example.memento.repository.UserProfile
+import com.example.memento.repository.UserProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,23 +21,29 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import javax.inject.Inject
 
-
 @HiltViewModel
 class UserViewModel @Inject constructor(
     private val dateFormatter: SimpleDateFormat,
-    private val savedStateHandle: SavedStateHandle,
-    private val phaseDao: LifePhaseDao,
+    private val profileRepository: UserProfileRepository,
+    private val phaseRepository: LifePhaseRepository,
 ) : ViewModel() {
 
-    var birthdayText by mutableStateOf(
-        savedStateHandle["date"] ?: ""
-    )
+    var birthdayText by mutableStateOf("")
         private set
 
-    var lifeExpectancyText by mutableStateOf(
-        savedStateHandle["lifeExpectancy"] ?: ""
-    )
+    var lifeExpectancyText by mutableStateOf("")
         private set
+
+    init {
+        viewModelScope.launch {
+            profileRepository.loadProfile()?.let { profile ->
+                birthdayText = profile.birthday
+                if (profile.lifeExpectancyYears != 90) {
+                    lifeExpectancyText = profile.lifeExpectancyYears.toString()
+                }
+            }
+        }
+    }
 
     val birthday: LocalDate?
         get() = runCatching {
@@ -55,21 +62,31 @@ class UserViewModel @Inject constructor(
             lifeExpectancyYears = lifeExpectancyYears
         )
 
-    val phases: StateFlow<List<LifePhase>> = phaseDao.getAll()
+    val phases: StateFlow<List<LifePhase>> = phaseRepository.phases
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun convertMillisToDate(millis: Long) {
-        val formatted = dateFormatter.format(Date(millis))
-        birthdayText = formatted
-        savedStateHandle["date"] = formatted
+        birthdayText = dateFormatter.format(Date(millis))
+        saveProfile()
     }
 
     fun updateLifeExpectancy(input: String) {
         lifeExpectancyText = input
-        savedStateHandle["lifeExpectancy"] = input
+        saveProfile()
     }
 
-    fun addPhase(phase: LifePhase) = viewModelScope.launch { phaseDao.insert(phase) }
-    fun updatePhase(phase: LifePhase) = viewModelScope.launch { phaseDao.update(phase) }
-    fun deletePhase(phase: LifePhase) = viewModelScope.launch { phaseDao.delete(phase) }
+    private fun saveProfile() {
+        viewModelScope.launch {
+            profileRepository.saveProfile(
+                UserProfile(
+                    birthday = birthdayText,
+                    lifeExpectancyYears = lifeExpectancyYears,
+                )
+            )
+        }
+    }
+
+    fun addPhase(phase: LifePhase) = viewModelScope.launch { phaseRepository.addPhase(phase) }
+    fun updatePhase(phase: LifePhase) = viewModelScope.launch { phaseRepository.updatePhase(phase) }
+    fun deletePhase(phase: LifePhase) = viewModelScope.launch { phaseRepository.deletePhase(phase) }
 }

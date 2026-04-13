@@ -31,8 +31,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val auth = FirebaseAuth.getInstance()
-        // Initialize Firebase Auth
-        Log.d("Firebase", "Auth initialized. Current user: ${auth.currentUser}")
+        if (auth.currentUser == null) {
+            auth.signInAnonymously()
+                .addOnSuccessListener { Log.d("Firebase", "Signed in anonymously: ${it.user?.uid}") }
+                .addOnFailureListener { Log.w("Firebase", "Anonymous sign-in failed", it) }
+        } else {
+            Log.d("Firebase", "Already signed in: ${auth.currentUser?.uid}")
+        }
         enableEdgeToEdge()
         setContent {
             MementoTheme {

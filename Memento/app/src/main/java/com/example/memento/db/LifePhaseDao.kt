@@ -13,7 +13,7 @@ interface LifePhaseDao {
     @Query("SELECT * FROM phases ORDER BY startEpochDay ASC")
     fun getAll(): Flow<List<LifePhase>>
 
-    @Insert suspend fun insert(phase: LifePhase)
+    @Insert suspend fun insert(phase: LifePhase): Long
     @Update suspend fun update(phase: LifePhase)
     @Delete suspend fun delete(phase: LifePhase)
 }

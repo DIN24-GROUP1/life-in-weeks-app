@@ -60,7 +60,7 @@ fun StartScreen(
 
     LaunchedEffect(datePickerState.selectedDateMillis) {
         datePickerState.selectedDateMillis?.let { millis ->
-            viewModel.setBirthday(millis)
+            viewModel.convertMillisToDate(millis)
         }
     }
 
@@ -111,26 +111,8 @@ fun StartScreen(
                     .padding(16.dp)
 
             )
-<<<<<<< HEAD
             val canNavigate = birthdayText.isNotBlank()
             StartTimelineButton(navController, enabled = canNavigate)
-=======
-
-            Button(
-                onClick = { onNavigateToGrid() },
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.1f)
-
-            ) {
-                Text("Start My Timeline")
-            }
-            Text(
-                text = "Skip for now",
-                textDecoration = TextDecoration.Underline,
-                fontSize = 12.sp
-            )
->>>>>>> 85062c4 (changed box composibles to a single canvas, removed unused imports, replaced dummydata with birthday)
 
             if (showDatePicker) {
                 Popup(
