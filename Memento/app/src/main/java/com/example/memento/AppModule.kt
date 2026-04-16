@@ -5,6 +5,7 @@ import android.icu.text.SimpleDateFormat
 import androidx.room.Room
 import com.example.memento.db.AppDatabase
 import com.example.memento.db.LifePhaseDao
+import com.example.memento.db.WeekNoteDao
 import com.example.memento.db.WeekTagDao
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -43,6 +44,9 @@ object DatabaseModule {
 
     @Provides
     fun provideWeekTagDao(db: AppDatabase): WeekTagDao = db.weekTagDao()
+
+    @Provides
+    fun provideWeekNoteDao(db: AppDatabase): WeekNoteDao = db.weekNoteDao()
 }
 
 @Module

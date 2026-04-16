@@ -35,12 +35,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,12 +63,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.memento.model.LifePhase
 import com.example.memento.ui.theme.AppColors
 import com.example.memento.ui.theme.LocalAppColors
+import com.example.memento.viewmodel.NoteViewModel
+import kotlinx.coroutines.flow.first
 import com.example.memento.viewmodel.TagViewModel
 import com.example.memento.viewmodel.UserViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
+private const val MAX_NOTE_LENGTH = 500
 private val CellGap = 1.dp
 private val YearLabelWidth = 20.dp
 private val YearLabelGap = 6.dp
@@ -77,6 +82,7 @@ private val HorizontalPadding = 16.dp
 fun LifeGridScreen(
     viewModel: UserViewModel = hiltViewModel(),
     tagViewModel: TagViewModel = hiltViewModel(),
+    noteViewModel: NoteViewModel = hiltViewModel(),
 ) {
     val c = LocalAppColors.current
     val today = remember { LocalDate.now() }
@@ -99,6 +105,7 @@ fun LifeGridScreen(
     val phases by viewModel.phases.collectAsState()
     val birthday = viewModel.user.birthday
     val taggedWeeks by tagViewModel.weeksWithTags.collectAsState()
+    val notedWeeks by noteViewModel.weeksWithNotes.collectAsState()
 
     val phaseColorMap: Map<Int, Int> = remember(phases, birthday) {
         val bd = birthday ?: return@remember emptyMap()
@@ -166,6 +173,7 @@ fun LifeGridScreen(
                             selectedWeek = selectedWeek,
                             phaseColorMap = activePhaseMap,
                             taggedWeekIndices = taggedWeeks,
+                            notedWeekIndices = notedWeeks,
                             appColors = c,
                             onWeekSelected = { week -> selectedWeek = Pair(year, week) }
                         )
@@ -189,6 +197,7 @@ fun LifeGridScreen(
                     birthday = birthday ?: LocalDate.now(),
                     currentWeekIdx = currentWeekIdx,
                     tagViewModel = tagViewModel,
+                    noteViewModel = noteViewModel,
                 )
             }
         }
@@ -254,6 +263,7 @@ private fun YearRow(
     selectedWeek: Pair<Int, Int>?,
     phaseColorMap: Map<Int, Int>,
     taggedWeekIndices: Set<Int>,
+    notedWeekIndices: Set<Int>,
     appColors: AppColors,
     onWeekSelected: (week: Int) -> Unit,
 ) {
@@ -319,13 +329,23 @@ private fun YearRow(
                     }
                 }
 
-                // Tag dot indicator
+                // Tag dot indicator (top-right)
                 if (weekIdx in taggedWeekIndices) {
                     val dotR = cellSizePx * 0.15f
                     drawCircle(
                         color = appColors.accentSoft,
                         radius = dotR,
                         center = Offset(x + cellSizePx - dotR - 1.dp.toPx(), dotR + 1.dp.toPx())
+                    )
+                }
+
+                // Note dot indicator (bottom-right)
+                if (weekIdx in notedWeekIndices) {
+                    val dotR = cellSizePx * 0.15f
+                    drawCircle(
+                        color = appColors.muted,
+                        radius = dotR,
+                        center = Offset(x + cellSizePx - dotR - 1.dp.toPx(), cellSizePx - dotR - 1.dp.toPx())
                     )
                 }
             }
@@ -343,6 +363,7 @@ private fun WeekDetailContent(
     birthday: LocalDate,
     currentWeekIdx: Int,
     tagViewModel: TagViewModel,
+    noteViewModel: NoteViewModel,
 ) {
     val c = LocalAppColors.current
     val weekIdx = year * 52 + week
@@ -355,7 +376,15 @@ private fun WeekDetailContent(
         "${weekStart.format(shortFmt)} – ${weekEnd.format(longFmt)}"
     }
 
+    val isFutureWeek = weekIdx > currentWeekIdx
     var noteText by remember { mutableStateOf("") }
+    LaunchedEffect(weekIdx) {
+        noteViewModel.noteForWeek(weekIdx).first().let { noteText = it }
+    }
+    val currentNote by rememberUpdatedState(noteText)
+    DisposableEffect(weekIdx) {
+        onDispose { noteViewModel.saveNoteNow(weekIdx, currentNote) }
+    }
     var showTagPicker by remember { mutableStateOf(false) }
 
     val tags by tagViewModel.tagsForWeek(weekIdx).collectAsState(initial = emptyList())
@@ -397,22 +426,40 @@ private fun WeekDetailContent(
 
         OutlinedTextField(
             value = noteText,
-            onValueChange = { noteText = it },
+            onValueChange = { new ->
+                if (new.length <= MAX_NOTE_LENGTH) {
+                    noteText = new
+                    noteViewModel.saveNote(weekIdx, new)
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 100.dp),
-            placeholder = { Text("What happened this week?", color = c.muted, fontSize = 14.sp) },
+            placeholder = {
+                Text(
+                    if (isFutureWeek) "No notes for future weeks" else "What happened this week?",
+                    color = c.muted,
+                    fontSize = 14.sp,
+                )
+            },
+            enabled = !isFutureWeek,
             shape = RoundedCornerShape(13.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = c.accent,
                 unfocusedBorderColor = c.border,
                 focusedTextColor = c.text,
                 unfocusedTextColor = c.text,
+                disabledTextColor = c.muted,
+                disabledBorderColor = c.border,
+                disabledContainerColor = c.surface2,
                 cursorColor = c.accentSoft,
                 focusedContainerColor = c.surface2,
                 unfocusedContainerColor = c.surface2,
             ),
             maxLines = 8,
+            supportingText = if (!isFutureWeek) {
+                { Text("${noteText.length} / $MAX_NOTE_LENGTH", color = c.muted, fontSize = 11.sp) }
+            } else null,
         )
 
         Spacer(Modifier.height(24.dp))
