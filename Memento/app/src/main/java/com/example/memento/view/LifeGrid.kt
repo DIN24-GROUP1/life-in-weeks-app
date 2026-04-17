@@ -27,6 +27,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -53,8 +57,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.AsyncImage
+import java.io.File
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -64,9 +74,10 @@ import com.example.memento.model.LifePhase
 import com.example.memento.ui.theme.AppColors
 import com.example.memento.ui.theme.LocalAppColors
 import com.example.memento.viewmodel.NoteViewModel
-import kotlinx.coroutines.flow.first
+import com.example.memento.viewmodel.PhotoViewModel
 import com.example.memento.viewmodel.TagViewModel
 import com.example.memento.viewmodel.UserViewModel
+import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -83,6 +94,7 @@ fun LifeGridScreen(
     viewModel: UserViewModel = hiltViewModel(),
     tagViewModel: TagViewModel = hiltViewModel(),
     noteViewModel: NoteViewModel = hiltViewModel(),
+    photoViewModel: PhotoViewModel = hiltViewModel(),
 ) {
     val c = LocalAppColors.current
     val today = remember { LocalDate.now() }
@@ -198,6 +210,7 @@ fun LifeGridScreen(
                     currentWeekIdx = currentWeekIdx,
                     tagViewModel = tagViewModel,
                     noteViewModel = noteViewModel,
+                    photoViewModel = photoViewModel,
                 )
             }
         }
@@ -364,6 +377,7 @@ private fun WeekDetailContent(
     currentWeekIdx: Int,
     tagViewModel: TagViewModel,
     noteViewModel: NoteViewModel,
+    photoViewModel: PhotoViewModel,
 ) {
     val c = LocalAppColors.current
     val weekIdx = year * 52 + week
@@ -386,6 +400,10 @@ private fun WeekDetailContent(
         onDispose { noteViewModel.saveNoteNow(weekIdx, currentNote) }
     }
     var showTagPicker by remember { mutableStateOf(false) }
+    val photo by photoViewModel.photoForWeek(weekIdx).collectAsState(initial = null)
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let { photoViewModel.savePhoto(weekIdx, it) } }
 
     val tags by tagViewModel.tagsForWeek(weekIdx).collectAsState(initial = emptyList())
 
@@ -414,82 +432,147 @@ private fun WeekDetailContent(
 
         Spacer(Modifier.height(24.dp))
 
-        Text(
-            text = "NOTE",
-            color = c.muted,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.sp,
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = noteText,
-            onValueChange = { new ->
-                if (new.length <= MAX_NOTE_LENGTH) {
-                    noteText = new
-                    noteViewModel.saveNote(weekIdx, new)
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 100.dp),
-            placeholder = {
-                Text(
-                    if (isFutureWeek) "No notes for future weeks" else "What happened this week?",
-                    color = c.muted,
-                    fontSize = 14.sp,
-                )
-            },
-            enabled = !isFutureWeek,
-            shape = RoundedCornerShape(13.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = c.accent,
-                unfocusedBorderColor = c.border,
-                focusedTextColor = c.text,
-                unfocusedTextColor = c.text,
-                disabledTextColor = c.muted,
-                disabledBorderColor = c.border,
-                disabledContainerColor = c.surface2,
-                cursorColor = c.accentSoft,
-                focusedContainerColor = c.surface2,
-                unfocusedContainerColor = c.surface2,
-            ),
-            maxLines = 8,
-            supportingText = if (!isFutureWeek) {
-                { Text("${noteText.length} / $MAX_NOTE_LENGTH", color = c.muted, fontSize = 11.sp) }
-            } else null,
-        )
-
-        Spacer(Modifier.height(24.dp))
-
-        // Tags section
-        Text(
-            text = "TAGS",
-            color = c.muted,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.sp,
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            tags.forEach { tag ->
-                TagChip(tag = tag, onRemove = { tagViewModel.removeTag(weekIdx, tag) })
-            }
+        if (isFutureWeek) {
             Box(
                 modifier = Modifier
-                    .background(Color.Transparent, RoundedCornerShape(50))
-                    .border(1.dp, c.border, RoundedCornerShape(50))
-                    .clickable { showTagPicker = true }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .fillMaxWidth()
+                    .background(c.surface2, RoundedCornerShape(16.dp))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Text("+ Add tag", color = c.accentSoft, fontSize = 13.sp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "This week is still ahead of you.",
+                        color = c.text,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.2).sp,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "The future is unwritten - come back when it arrives.",
+                        color = c.muted,
+                        fontSize = 13.sp,
+                    )
+                }
+            }
+        } else {
+            // Note section
+            Text(
+                text = "NOTE",
+                color = c.muted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.sp,
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = noteText,
+                onValueChange = { new ->
+                    if (new.length <= MAX_NOTE_LENGTH) {
+                        noteText = new
+                        noteViewModel.saveNote(weekIdx, new)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 100.dp),
+                placeholder = { Text("What happened this week?", color = c.muted, fontSize = 14.sp) },
+                shape = RoundedCornerShape(13.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = c.accent,
+                    unfocusedBorderColor = c.border,
+                    focusedTextColor = c.text,
+                    unfocusedTextColor = c.text,
+                    cursorColor = c.accentSoft,
+                    focusedContainerColor = c.surface2,
+                    unfocusedContainerColor = c.surface2,
+                ),
+                maxLines = 8,
+                supportingText = { Text("${noteText.length} / $MAX_NOTE_LENGTH", color = c.muted, fontSize = 11.sp) },
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            // Photo section
+            Text(
+                text = "PHOTO",
+                color = c.muted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.sp,
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            if (photo != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                ) {
+                    AsyncImage(
+                        model = File(photo!!.localUri),
+                        contentDescription = "Week photo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                    IconButton(
+                        onClick = { photoViewModel.deletePhoto(weekIdx) },
+                        modifier = Modifier.align(Alignment.TopEnd),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Remove photo",
+                            tint = Color.White,
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .border(1.dp, c.border, RoundedCornerShape(13.dp))
+                        .clickable { photoPickerLauncher.launch("image/*") },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("+ Add photo", color = c.accentSoft, fontSize = 14.sp)
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // Tags section
+            Text(
+                text = "TAGS",
+                color = c.muted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.sp,
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                tags.forEach { tag ->
+                    TagChip(tag = tag, onRemove = { tagViewModel.removeTag(weekIdx, tag) })
+                }
+                Box(
+                    modifier = Modifier
+                        .background(Color.Transparent, RoundedCornerShape(50))
+                        .border(1.dp, c.border, RoundedCornerShape(50))
+                        .clickable { showTagPicker = true }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text("+ Add tag", color = c.accentSoft, fontSize = 13.sp)
+                }
             }
         }
     }
