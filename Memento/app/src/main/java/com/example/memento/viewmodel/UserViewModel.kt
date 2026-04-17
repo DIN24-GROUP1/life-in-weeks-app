@@ -17,6 +17,7 @@ import com.example.memento.repository.LifePhaseRepository
 import com.example.memento.repository.UserProfile
 import com.example.memento.repository.UserProfileRepository
 import com.example.memento.ui.theme.ThemeMode
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
@@ -34,6 +35,7 @@ class UserViewModel @Inject constructor(
     private val dateFormatter: SimpleDateFormat,
     private val profileRepository: UserProfileRepository,
     private val phaseRepository: LifePhaseRepository,
+    private val auth: FirebaseAuth,
 ) : ViewModel() {
 
     private val prefs = context.getSharedPreferences("memento_prefs", Context.MODE_PRIVATE)
@@ -64,18 +66,36 @@ class UserViewModel @Inject constructor(
     var isProfileLoaded by mutableStateOf(false)
         private set
 
-    init {
-        viewModelScope.launch {
-            profileRepository.loadProfile()?.let { profile ->
-                birthdayText = profile.birthday
-                lifeExpectancyText = if (profile.lifeExpectancyYears != 90)
-                    profile.lifeExpectancyYears.toString() else ""
-                genderSliderPosition = profile.genderSliderPosition
-                selectedCountry = allCountries.find { it.name == profile.country }
-            }
-            isProfileLoaded = true
-            birthday?.let { phaseRepository.seedDefaultPhasesIfEmpty(it) }
+    private var currentUserId: String? = null
+
+    private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+        val uid = firebaseAuth.currentUser?.uid
+        if (uid != null && uid != currentUserId) {
+            currentUserId = uid
+            viewModelScope.launch { loadProfileAndSeed() }
         }
+    }
+
+    init {
+        auth.addAuthStateListener(authStateListener)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        auth.removeAuthStateListener(authStateListener)
+    }
+
+    private suspend fun loadProfileAndSeed() {
+        isProfileLoaded = false
+        profileRepository.loadProfile()?.let { profile ->
+            birthdayText = profile.birthday
+            lifeExpectancyText = if (profile.lifeExpectancyYears != 90)
+                profile.lifeExpectancyYears.toString() else ""
+            genderSliderPosition = profile.genderSliderPosition
+            selectedCountry = allCountries.find { it.name == profile.country }
+        }
+        isProfileLoaded = true
+        birthday?.let { phaseRepository.syncFromFirestore(it) }
     }
 
     val birthday: LocalDate?
