@@ -63,6 +63,37 @@ class LifePhaseRepository @Inject constructor(
         }
     }
 
+    /**
+     * Called on every UID change (sign-in / sign-out).
+     * Clears Room and restores this user's phases from Firestore.
+     * If Firestore is empty (new account), seeds the 5 defaults instead.
+     */
+    suspend fun syncFromFirestore(birthday: LocalDate) {
+        val snapshot = runCatching { phasesRef().get().await() }
+            .onFailure { Log.w("LifePhaseRepository", "Failed to fetch phases from Firestore", it) }
+            .getOrNull()
+
+        dao.clearAll()
+
+        if (snapshot == null || snapshot.isEmpty) {
+            seedDefaultPhasesIfEmpty(birthday)
+            return
+        }
+
+        val phases = snapshot.documents.mapNotNull { doc ->
+            runCatching {
+                LifePhase(
+                    id = doc.id.toInt(),
+                    name = doc.getString("name") ?: return@mapNotNull null,
+                    colorArgb = (doc.getLong("colorArgb") ?: return@mapNotNull null).toInt(),
+                    startEpochDay = doc.getLong("startEpochDay") ?: return@mapNotNull null,
+                    endEpochDay = doc.getLong("endEpochDay") ?: return@mapNotNull null,
+                )
+            }.getOrNull()
+        }
+        dao.insertAll(phases)
+    }
+
     private fun LifePhase.toMap() = mapOf(
         "name" to name,
         "colorArgb" to colorArgb,
