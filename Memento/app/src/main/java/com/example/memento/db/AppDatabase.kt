@@ -4,11 +4,13 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.example.memento.model.LifePhase
 import com.example.memento.model.WeekNote
+import com.example.memento.model.WeekPhoto
 import com.example.memento.model.WeekTag
 
-@Database(entities = [LifePhase::class, WeekTag::class, WeekNote::class], version = 3)
+@Database(entities = [LifePhase::class, WeekTag::class, WeekNote::class, WeekPhoto::class], version = 4)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun phaseDao(): LifePhaseDao
     abstract fun weekTagDao(): WeekTagDao
     abstract fun weekNoteDao(): WeekNoteDao
+    abstract fun weekPhotoDao(): WeekPhotoDao
 }

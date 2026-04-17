@@ -6,6 +6,7 @@ import androidx.room.Room
 import com.example.memento.db.AppDatabase
 import com.example.memento.db.LifePhaseDao
 import com.example.memento.db.WeekNoteDao
+import com.example.memento.db.WeekPhotoDao
 import com.example.memento.db.WeekTagDao
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -47,6 +48,9 @@ object DatabaseModule {
 
     @Provides
     fun provideWeekNoteDao(db: AppDatabase): WeekNoteDao = db.weekNoteDao()
+
+    @Provides
+    fun provideWeekPhotoDao(db: AppDatabase): WeekPhotoDao = db.weekPhotoDao()
 }
 
 @Module
