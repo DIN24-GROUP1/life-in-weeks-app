@@ -17,6 +17,9 @@ interface LifePhaseDao {
     suspend fun count(): Int
 
     @Insert suspend fun insert(phase: LifePhase): Long
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    suspend fun insertAll(phases: List<LifePhase>)
     @Update suspend fun update(phase: LifePhase)
     @Delete suspend fun delete(phase: LifePhase)
+    @Query("DELETE FROM phases") suspend fun clearAll()
 }
