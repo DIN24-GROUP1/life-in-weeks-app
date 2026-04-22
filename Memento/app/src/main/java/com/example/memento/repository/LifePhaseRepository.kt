@@ -7,6 +7,8 @@ import com.example.memento.model.defaultLifePhases
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import javax.inject.Inject
@@ -18,6 +20,10 @@ class LifePhaseRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
 ) {
+    // Prevents seedDefaultPhasesIfEmpty and syncFromFirestore from interleaving,
+    // which would leave only the first phase if sign-in happens mid-seeding.
+    private val mutex = Mutex()
+
     private suspend fun ensureUserId(): String {
         auth.currentUser?.let { return it.uid }
         return auth.signInAnonymously().await().user!!.uid
@@ -52,15 +58,9 @@ class LifePhaseRepository @Inject constructor(
         phasesRef().document(phase.id.toString()).set(phase.toMap()).await()
     }.onFailure { Log.w("LifePhaseRepository", "Failed to sync phase ${phase.id} to Firestore", it) }
 
-    /** Inserts the 5 default life phases if the user has no phases yet. */
-    suspend fun seedDefaultPhasesIfEmpty(birthday: LocalDate) {
-        if (dao.count() > 0) return
-        defaultLifePhases.forEach { phase ->
-            val start = birthday.plusYears(phase.startYear.toLong()).toEpochDay()
-            val end   = birthday.plusYears(phase.endYear.toLong()).minusDays(1).toEpochDay()
-            addPhase(LifePhase(name = phase.name, colorArgb = phase.colorArgb,
-                               startEpochDay = start, endEpochDay = end))
-        }
+    /** Public entry point — acquires the mutex so it can't interleave with syncFromFirestore. */
+    suspend fun seedDefaultPhasesIfEmpty(birthday: LocalDate) = mutex.withLock {
+        seedInternal(birthday)
     }
 
     /**
@@ -68,7 +68,7 @@ class LifePhaseRepository @Inject constructor(
      * Clears Room and restores this user's phases from Firestore.
      * If Firestore is empty (new account), seeds the 5 defaults instead.
      */
-    suspend fun syncFromFirestore(birthday: LocalDate) {
+    suspend fun syncFromFirestore(birthday: LocalDate) = mutex.withLock {
         val snapshot = runCatching { phasesRef().get().await() }
             .onFailure { Log.w("LifePhaseRepository", "Failed to fetch phases from Firestore", it) }
             .getOrNull()
@@ -76,8 +76,8 @@ class LifePhaseRepository @Inject constructor(
         dao.clearAll()
 
         if (snapshot == null || snapshot.isEmpty) {
-            seedDefaultPhasesIfEmpty(birthday)
-            return
+            seedInternal(birthday)
+            return@withLock
         }
 
         val phases = snapshot.documents.mapNotNull { doc ->
@@ -92,6 +92,17 @@ class LifePhaseRepository @Inject constructor(
             }.getOrNull()
         }
         dao.insertAll(phases)
+    }
+
+    // Internal seeding — called only from within the mutex lock.
+    private suspend fun seedInternal(birthday: LocalDate) {
+        if (dao.count() > 0) return
+        defaultLifePhases.forEach { phase ->
+            val start = birthday.plusYears(phase.startYear.toLong()).toEpochDay()
+            val end   = birthday.plusYears(phase.endYear.toLong()).minusDays(1).toEpochDay()
+            addPhase(LifePhase(name = phase.name, colorArgb = phase.colorArgb,
+                               startEpochDay = start, endEpochDay = end))
+        }
     }
 
     private fun LifePhase.toMap() = mapOf(

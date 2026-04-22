@@ -14,6 +14,7 @@ import com.example.memento.model.UserModel
 import com.example.memento.model.allCountries
 import com.example.memento.model.calculateLifeExpectancy
 import com.example.memento.repository.LifePhaseRepository
+import com.example.memento.repository.PhotoRepository
 import com.example.memento.repository.UserProfile
 import com.example.memento.repository.UserProfileRepository
 import com.example.memento.ui.theme.ThemeMode
@@ -35,6 +36,7 @@ class UserViewModel @Inject constructor(
     private val dateFormatter: SimpleDateFormat,
     private val profileRepository: UserProfileRepository,
     private val phaseRepository: LifePhaseRepository,
+    private val photoRepository: PhotoRepository,
     private val auth: FirebaseAuth,
 ) : ViewModel() {
 
@@ -96,6 +98,7 @@ class UserViewModel @Inject constructor(
         }
         isProfileLoaded = true
         birthday?.let { phaseRepository.syncFromFirestore(it) }
+        photoRepository.syncFromStorage()
     }
 
     val birthday: LocalDate?

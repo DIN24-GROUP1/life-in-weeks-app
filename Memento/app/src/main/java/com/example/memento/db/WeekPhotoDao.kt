@@ -20,4 +20,7 @@ interface WeekPhotoDao {
 
     @Query("SELECT weekIdx FROM week_photos")
     fun getWeekIndicesWithPhotos(): Flow<List<Int>>
+
+    @Query("SELECT weekIdx FROM week_photos")
+    suspend fun getAllWeekIndices(): List<Int>
 }

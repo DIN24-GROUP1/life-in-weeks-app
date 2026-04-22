@@ -27,6 +27,9 @@ class PhotoRepository @Inject constructor(
         return auth.signInAnonymously().await().user!!.uid
     }
 
+    private suspend fun photosRef() =
+        storage.reference.child("users/${ensureUserId()}/photos")
+
     val weeksWithPhotos: Flow<Set<Int>> = dao.getWeekIndicesWithPhotos().map { it.toSet() }
 
     fun photoForWeek(weekIdx: Int): Flow<WeekPhoto?> = dao.getPhotoForWeek(weekIdx)
@@ -38,12 +41,46 @@ class PhotoRepository @Inject constructor(
     }
 
     suspend fun delete(weekIdx: Int) {
-        val photo = dao.getPhotoForWeek(weekIdx)
         dao.delete(weekIdx)
-        File(internalFile(weekIdx).absolutePath).delete()
+        internalFile(weekIdx).delete()
         runCatching {
-            storage.reference.child("users/${ensureUserId()}/photos/$weekIdx.jpg").delete().await()
+            photosRef().child("$weekIdx.jpg").delete().await()
         }.onFailure { Log.w("PhotoRepository", "Failed to delete photo $weekIdx from Storage", it) }
+    }
+
+    /**
+     * Called on every UID change (sign-in / sign-out).
+     * Performs a differential sync — only downloads photos missing locally
+     * and removes any that no longer exist in Storage.
+     */
+    suspend fun syncFromStorage() {
+        val listing = runCatching { photosRef().listAll().await() }
+            .onFailure { Log.w("PhotoRepository", "Failed to list photos from Storage", it) }
+            .getOrNull() ?: return
+
+        val remoteIndices = listing.items
+            .mapNotNull { it.name.removeSuffix(".jpg").toIntOrNull() }
+            .toSet()
+
+        val localIndices = dao.getAllWeekIndices().toSet()
+
+        // Remove entries that were deleted on another device
+        (localIndices - remoteIndices).forEach { weekIdx ->
+            dao.delete(weekIdx)
+            internalFile(weekIdx).delete()
+        }
+
+        // Download only photos missing locally or whose file was lost from disk
+        listing.items.forEach { ref ->
+            val weekIdx = ref.name.removeSuffix(".jpg").toIntOrNull() ?: return@forEach
+            val file = internalFile(weekIdx)
+            if (weekIdx in localIndices && file.exists()) return@forEach
+
+            runCatching {
+                ref.getFile(file).await()
+                dao.upsert(WeekPhoto(weekIdx, file.absolutePath))
+            }.onFailure { Log.w("PhotoRepository", "Failed to download photo $weekIdx", it) }
+        }
     }
 
     private fun copyToInternalStorage(weekIdx: Int, uri: Uri): String {
@@ -54,16 +91,18 @@ class PhotoRepository @Inject constructor(
         return file.absolutePath
     }
 
-    private fun internalFile(weekIdx: Int): File {
-        val dir = File(context.filesDir, "photos").apply { mkdirs() }
-        return File(dir, "$weekIdx.jpg")
-    }
+    private fun photoDir(): File =
+        File(context.filesDir, "photos").apply { mkdirs() }
 
+    private fun internalFile(weekIdx: Int): File =
+        File(photoDir(), "$weekIdx.jpg")
+
+    // Uses putStream instead of putFile(Uri) — more reliable with internal storage files
     private suspend fun uploadToStorage(weekIdx: Int, file: File) {
         runCatching {
-            storage.reference
-                .child("users/${ensureUserId()}/photos/$weekIdx.jpg")
-                .putFile(Uri.fromFile(file)).await()
+            file.inputStream().use { stream ->
+                photosRef().child("$weekIdx.jpg").putStream(stream).await()
+            }
         }.onFailure { Log.w("PhotoRepository", "Failed to upload photo $weekIdx to Storage", it) }
     }
 }
