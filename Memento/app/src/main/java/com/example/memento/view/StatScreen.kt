@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +43,7 @@ fun StatScreen(viewModel: UserViewModel) {
         return
     }
 
+    val factOfTheDay by viewModel.factOfTheDay.collectAsState()
     val today = remember { LocalDate.now() }
     val daysLived    = ChronoUnit.DAYS.between(birthday, today).toInt().coerceAtLeast(0)
     val weeksLived   = daysLived / 7
@@ -109,6 +112,9 @@ fun StatScreen(viewModel: UserViewModel) {
                 }
             }
         }
+
+        item { StatSectionHeader("On This Day") }
+        item { FactOfTheDayCard(fact = factOfTheDay) }
 
         item { StatSectionHeader("Time in Numbers") }
         item {
@@ -212,6 +218,23 @@ private fun MilestoneRow(title: String, daysAway: Int, date: String) {
         )
     }
     Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.border))
+}
+
+@Composable
+private fun FactOfTheDayCard(fact: String?) {
+    val c = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(c.surface, RoundedCornerShape(14.dp))
+            .padding(16.dp)
+    ) {
+        if (fact == null) {
+            Text("Loading...", color = c.muted, fontSize = 14.sp)
+        } else {
+            Text(fact, color = c.text, fontSize = 14.sp, lineHeight = 20.sp)
+        }
+    }
 }
 
 private fun formatLarge(n: Long): String = when {

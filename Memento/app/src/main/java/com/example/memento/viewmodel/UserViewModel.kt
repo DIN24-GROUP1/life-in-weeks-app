@@ -13,6 +13,7 @@ import com.example.memento.model.LifePhase
 import com.example.memento.model.UserModel
 import com.example.memento.model.allCountries
 import com.example.memento.model.calculateLifeExpectancy
+import com.example.memento.repository.FactOfTheDayRepository
 import com.example.memento.repository.LifePhaseRepository
 import com.example.memento.repository.PhotoRepository
 import com.example.memento.repository.UserProfile
@@ -21,8 +22,10 @@ import com.example.memento.ui.theme.ThemeMode
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -37,6 +40,7 @@ class UserViewModel @Inject constructor(
     private val profileRepository: UserProfileRepository,
     private val phaseRepository: LifePhaseRepository,
     private val photoRepository: PhotoRepository,
+    private val factRepository: FactOfTheDayRepository,
     private val auth: FirebaseAuth,
 ) : ViewModel() {
 
@@ -78,8 +82,12 @@ class UserViewModel @Inject constructor(
         }
     }
 
+    private val _factOfTheDay = MutableStateFlow<String?>(null)
+    val factOfTheDay: StateFlow<String?> = _factOfTheDay.asStateFlow()
+
     init {
         auth.addAuthStateListener(authStateListener)
+        viewModelScope.launch { _factOfTheDay.value = factRepository.fetchFactForToday() }
     }
 
     override fun onCleared() {
